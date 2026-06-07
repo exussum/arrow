@@ -4,28 +4,18 @@ import threading
 from apscheduler.executors.pool import ThreadPoolExecutor
 from apscheduler.jobstores.memory import MemoryJobStore
 from apscheduler.schedulers.background import BackgroundScheduler
-from StreamDeck.DeviceManager import DeviceManager
 
 from arrow import DIM_BRIGHTNESS
 from arrow import api
 
 
 def main():
-    print("searching for streamdeck", file=sys.stderr)
-    decks = DeviceManager().enumerate()
-    if not decks:
-        print("no streamdeck found", file=sys.stderr)
-        return
-
-    deck = decks[0]
-    print(f"opening {deck.deck_type()}", file=sys.stderr)
-    deck.open()
-    deck.reset()
-
-    api.upload_icons(deck)
-
     state = api.State(brightness=DIM_BRIGHTNESS)
-    deck.set_brightness(DIM_BRIGHTNESS)
+
+    deck = api.get_deck()
+    print("opening streamdeck", file=sys.stderr)
+
+    api.initialize_deck(deck)
 
     print("starting scheduler", file=sys.stderr)
     scheduler = BackgroundScheduler(
@@ -42,9 +32,7 @@ def main():
     except KeyboardInterrupt:
         pass
     finally:
-        scheduler.shutdown(wait=False)
-        with deck:
-            deck.close()
+        api.shutdown_deck(deck)
 
 
 if __name__ == "__main__":
