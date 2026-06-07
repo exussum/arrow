@@ -70,7 +70,6 @@ def upload_icons(deck):
         if not path.exists():
             print(f"[{i}/{total}] missing icon {path}", file=sys.stderr)
             continue
-        print(f"[{i}/{total}] uploading key {key} {label}", file=sys.stderr)
         with Image.open(path) as img:
             scaled = PILHelper.create_scaled_image(deck, img, margins=[0, 0, 0, 0])
         native = PILHelper.to_native_format(deck, scaled)

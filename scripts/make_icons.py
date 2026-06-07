@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageEnhance, ImageFont
@@ -5,8 +7,8 @@ from PIL import Image, ImageDraw, ImageEnhance, ImageFont
 SIZE = 144
 TRI = 42
 BADGE = 56  # pushpin overlay size
-YELLOW = (255, 204, 0, 255)
-DARK_GREY = (60, 60, 60, 255)
+ON_COLOR = (0, 200, 0, 255)
+OFF_COLOR = (220, 0, 0, 255)
 FONT_PATH = "/System/Library/Fonts/Apple Color Emoji.ttc"
 NATIVE = 160  # Apple Color Emoji's only valid strike size in PIL
 EMOJI_TARGET = 120
@@ -23,7 +25,7 @@ PUSHPIN = "\U0001F4CC"
 ROUTINES = {
     "bed_time":             "\U0001F4A4",  # 💤
     "tv_lights":            "\U0001F4FA",  # 📺
-    "early_morning_lights": "\U0001FA94",  # 🪔
+    "early_morning_lights": "\U0001F56F",  # 🕯
     "all_lights_on":        "\U0001F4A1",  # 💡
     "dog":                  "\U0001F415",  # 🐕
     "silence":              "\U0001F507",  # 🔇
@@ -61,18 +63,19 @@ def add_pushpin(img: Image.Image):
 
 
 VARIANTS = {
-    "on":     lambda img: add_triangle(img, YELLOW),
-    "off":    lambda img: add_triangle(img, DARK_GREY),
+    "on":     lambda img: add_triangle(img, ON_COLOR),
+    "off":    lambda img: add_triangle(img, OFF_COLOR),
     "follow": add_pushpin,
 }
 
 
-def pair(left_emoji: str, right_emoji: str) -> Image.Image:
+def diagonal(top_left_emoji: str, bottom_right_emoji: str) -> Image.Image:
     img = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
-    y = (SIZE - PAIR_TARGET) // 2
-    gap = (SIZE - 2 * PAIR_TARGET) // 3
-    img.alpha_composite(render_emoji(left_emoji, PAIR_TARGET), (gap, y))
-    img.alpha_composite(render_emoji(right_emoji, PAIR_TARGET), (gap * 2 + PAIR_TARGET, y))
+    img.alpha_composite(render_emoji(top_left_emoji, PAIR_TARGET), (0, 0))
+    img.alpha_composite(
+        render_emoji(bottom_right_emoji, PAIR_TARGET),
+        (SIZE - PAIR_TARGET, SIZE - PAIR_TARGET),
+    )
     return img
 
 
@@ -89,22 +92,18 @@ def main():
             img = base(emoji)
             decorate(img)
             img.save(out / f"{name}.png")
-            print(f"wrote {variant}/{name}.png")
 
     routines_out = OUT_DIR / "routines"
     routines_out.mkdir(parents=True, exist_ok=True)
     for name, emoji in ROUTINES.items():
         img = base(emoji)
         img.save(routines_out / f"{name}.png")
-        print(f"wrote routines/{name}.png")
 
-    partial = pair("\U0001F4FA", "\U0001F4A1")  # 📺 + 💡
+    partial = diagonal("\U0001F4FA", "\U0001F4A1")  # 📺 + 💡
     partial.save(routines_out / "partial_tv_lights.png")
-    print("wrote routines/partial_tv_lights.png")
 
     off_bulb = desaturate(base("\U0001F4A1"))
     off_bulb.save(routines_out / "all_lights_off.png")
-    print("wrote routines/all_lights_off.png")
 
 
 if __name__ == "__main__":
