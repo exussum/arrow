@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
-DIM_DELAY_SECONDS = 60
+DIM_DELAY_SECONDS = 30
 ACTIVE_BRIGHTNESS = 100
 DIM_BRIGHTNESS = 0
 
