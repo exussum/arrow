@@ -40,4 +40,5 @@ packages = ["src/arrow"]
 include = [
     "src/arrow/**/*.py",
     "src/arrow/icons/**/*.png",
+    "src/arrow/icons/**/*.gif",
 ]
