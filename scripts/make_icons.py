@@ -2,7 +2,7 @@
 
 from PIL import Image
 
-from arrow import ICONS_DIR
+from arrow import BUTTONS, ICONS_DIR, ROUTINES
 from arrow.img import (
     OFF_COLOR,
     ON_COLOR,
@@ -13,9 +13,32 @@ from arrow.img import (
     desaturate,
     diagonal,
     emoji_base,
+    multiline_frame,
     render_emoji,
     swap_white_to_black,
 )
+
+LABEL_FONT_SIZE = 26
+
+
+def wrap_words(text: str, max_chars: int = 10) -> list[str]:
+    lines: list[str] = []
+    current = ""
+    for word in text.split():
+        if not current:
+            current = word
+        elif len(current) + 1 + len(word) <= max_chars:
+            current += " " + word
+        else:
+            lines.append(current)
+            current = word
+    if current:
+        lines.append(current)
+    return lines
+
+
+def label_image(lines: list[str], font_size: int = LABEL_FONT_SIZE):
+    return multiline_frame(lines, font_size)
 
 ROOMS = {
     "living_room": "\U0001F6CB️",
@@ -23,7 +46,7 @@ ROOMS = {
     "kitchen":     "\U0001F37D️",
 }
 
-ROUTINES = {
+ROUTINE_ICONS = {
     "bed_time":             "\U0001F4A4",  # 💤
     "tv_lights":            "\U0001F4FA",  # 📺
     "early_morning_lights": "\U0001F56F",  # 🕯
@@ -52,7 +75,7 @@ def main():
 
     routines_out = ICONS_DIR / "routines"
     routines_out.mkdir(parents=True, exist_ok=True)
-    for name, emoji in ROUTINES.items():
+    for name, emoji in ROUTINE_ICONS.items():
         img = emoji_base(emoji)
         img.save(routines_out / f"{name}.png")
 
@@ -70,6 +93,29 @@ def main():
 
     dusk = swap_white_to_black(emoji_base("\U0001F306"))  # 🌆
     dusk.save(routines_out / "sunset_lights.png")
+
+    labels_root = ICONS_DIR / "labels"
+    seen_buttons: set[tuple[str, str]] = set()
+    for button in BUTTONS.values():
+        key = (button.slug, button.action)
+        if key in seen_buttons:
+            continue
+        seen_buttons.add(key)
+        label_dir = labels_root / button.action
+        label_dir.mkdir(parents=True, exist_ok=True)
+        lines = wrap_words(button.display_name) + [button.action.capitalize()]
+        label_image(lines).save(label_dir / f"{button.slug}.png")
+
+    routine_labels = labels_root / "routines"
+    routine_labels.mkdir(parents=True, exist_ok=True)
+    seen_routines: set[str] = set()
+    for routine in ROUTINES.values():
+        if routine.slug in seen_routines:
+            continue
+        seen_routines.add(routine.slug)
+        label_image(wrap_words(routine.display_name)).save(routine_labels / f"{routine.slug}.png")
+
+    emoji_base("❓").save(ICONS_DIR / "help.png")  # ❓
 
 
 if __name__ == "__main__":
