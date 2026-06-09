@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageEnhance, ImageFont
+from PIL import Image, ImageDraw, ImageEnhance, ImageFont, ImageMath
 
 SIZE = 144
 TRI = 42
@@ -33,11 +33,14 @@ def render_emoji(emoji: str, target_size: int) -> Image.Image:
     return raw.resize((target_size, target_size), Image.LANCZOS)
 
 
+def _paste_emoji(img: Image.Image, emoji: str, target: int, pos: tuple[int, int]) -> None:
+    img.alpha_composite(render_emoji(emoji, target), pos)
+
+
 def emoji_base(emoji: str) -> Image.Image:
     img = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
-    rendered = render_emoji(emoji, EMOJI_TARGET)
     off = (SIZE - EMOJI_TARGET) // 2
-    img.alpha_composite(rendered, (off, off))
+    _paste_emoji(img, emoji, EMOJI_TARGET, (off, off))
     return img
 
 
@@ -49,17 +52,13 @@ def add_triangle(img: Image.Image, color) -> None:
 
 
 def add_pushpin(img: Image.Image) -> None:
-    pin = render_emoji(PUSHPIN, BADGE)
-    img.alpha_composite(pin, (SIZE - BADGE, SIZE - BADGE))
+    _paste_emoji(img, PUSHPIN, BADGE, (SIZE - BADGE, SIZE - BADGE))
 
 
 def diagonal(top_left_emoji: str, bottom_right_emoji: str) -> Image.Image:
     img = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
-    img.alpha_composite(render_emoji(top_left_emoji, PAIR_TARGET), (0, 0))
-    img.alpha_composite(
-        render_emoji(bottom_right_emoji, PAIR_TARGET),
-        (SIZE - PAIR_TARGET, SIZE - PAIR_TARGET),
-    )
+    _paste_emoji(img, top_left_emoji, PAIR_TARGET, (0, 0))
+    _paste_emoji(img, bottom_right_emoji, PAIR_TARGET, (SIZE - PAIR_TARGET, SIZE - PAIR_TARGET))
     return img
 
 
@@ -69,52 +68,58 @@ def desaturate(img: Image.Image, brightness: float = 0.5) -> Image.Image:
 
 
 def swap_white_to_black(img: Image.Image, threshold: int = 200) -> Image.Image:
-    out = img.copy()
-    px = out.load()
-    w, h = out.size
-    for y in range(h):
-        for x in range(w):
-            r, g, b, a = px[x, y]
-            if a > 0 and r >= threshold and g >= threshold and b >= threshold:
-                px[x, y] = (0, 0, 0, a)
-    return out
+    r, g, b, a = img.split()
+    mask = ImageMath.unsafe_eval(
+        'convert(((r >= t) & (g >= t) & (b >= t) & (a > 0)) * 255, "L")',
+        r=r, g=g, b=b, a=a, t=threshold,
+    )
+    black = Image.new("RGBA", img.size)
+    black.putalpha(a)
+    return Image.composite(black, img, mask)
+
+
+def _text_height(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.FreeTypeFont) -> int:
+    b = draw.textbbox((0, 0), text, font=font)
+    return b[3] - b[1]
+
+
+def _draw_h_centered(
+    draw: ImageDraw.ImageDraw, text: str, font: ImageFont.FreeTypeFont, top: int, fg: str
+) -> None:
+    bbox = draw.textbbox((0, 0), text, font=font)
+    draw.text(
+        ((SIZE - (bbox[2] - bbox[0])) // 2 - bbox[0], top - bbox[1]),
+        text,
+        font=font,
+        fill=fg,
+    )
 
 
 def _text_frame(text: str, fg: str = "white", bg: str = "black") -> Image.Image:
     frame = Image.new("RGB", (SIZE, SIZE), bg)
     draw = ImageDraw.Draw(frame)
-
-    bbox = draw.textbbox((0, 0), text, font=_text_font)
-    x = (SIZE - (bbox[2] - bbox[0])) // 2 - bbox[0]
-    y = (SIZE - (bbox[3] - bbox[1])) // 2 - bbox[1] - 10
-    draw.text((x, y), text, font=_text_font, fill=fg)
-
-    pbbox = draw.textbbox((0, 0), PROCESSING_TEXT, font=_processing_font)
-    px = (SIZE - (pbbox[2] - pbbox[0])) // 2 - pbbox[0]
-    py = SIZE - (pbbox[3] - pbbox[1]) - 6 - pbbox[1]
-    draw.text((px, py), PROCESSING_TEXT, font=_processing_font, fill=fg)
-
+    big_top = (SIZE - _text_height(draw, text, _text_font)) // 2 - 10
+    proc_top = SIZE - _text_height(draw, PROCESSING_TEXT, _processing_font) - 6
+    _draw_h_centered(draw, text, _text_font, big_top, fg)
+    _draw_h_centered(draw, PROCESSING_TEXT, _processing_font, proc_top, fg)
     return frame
 
 
-def _multiline_frame(lines, font_size: int, fg: str = "white", bg: str = "black") -> Image.Image:
+def multiline_frame(lines, font_size: int, fg: str = "white", bg: str = "black") -> Image.Image:
     frame = Image.new("RGB", (SIZE, SIZE), bg)
     draw = ImageDraw.Draw(frame)
     font = ImageFont.truetype(TEXT_FONT_PATH, font_size)
-    boxes = [draw.textbbox((0, 0), line, font=font) for line in lines]
-    line_height = max(b[3] - b[1] for b in boxes) + 4
-    total = line_height * len(lines) - 4
-    y = (SIZE - total) // 2
-    for line, bbox in zip(lines, boxes):
-        x = (SIZE - (bbox[2] - bbox[0])) // 2 - bbox[0]
-        draw.text((x, y - bbox[1]), line, font=font, fill=fg)
+    line_height = max(_text_height(draw, line, font) for line in lines) + 4
+    y = (SIZE - (line_height * len(lines) - 4)) // 2
+    for line in lines:
+        _draw_h_centered(draw, line, font, y, fg)
         y += line_height
     return frame
 
 
 def save_countdown(seconds: int, out_path: Path, frame_ms: int = 1000) -> None:
     frames = [_text_frame(str(n)) for n in range(seconds, 0, -1)]
-    frames.append(_multiline_frame(WAITING_LINES, WAITING_FONT_SIZE))
+    frames.append(multiline_frame(WAITING_LINES, WAITING_FONT_SIZE))
     frames[0].save(
         out_path,
         save_all=True,

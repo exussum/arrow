@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
-DIM_DELAY_SECONDS = 30
+DIM_DELAY_SECONDS = 15
 ACTIVE_BRIGHTNESS = 100
 DIM_BRIGHTNESS = 0
 
@@ -10,6 +10,8 @@ ORC_BASE_URL = "http://remote.int.exussum.example"
 HTTP_TIMEOUT = 120
 
 ICONS_DIR = Path(__file__).resolve().parent / "icons"
+
+HELP_POSITION = 31
 
 
 @dataclass(frozen=True)
@@ -40,14 +42,14 @@ class ButtonId(Enum):
 
 class RoutineId(Enum):
     # name to position
-    goodnight             = 6
-    dim_the_hall    = 14
-    movie_night            = 22
-    nightlights = 30
-    everything        = 7
-    reset                = 15
-    cat                  = 31
-    hush              = 23
+    goodnight             = 4
+    dim_the_hall    = 12
+    movie_night            = 20
+    nightlights = 28
+    everything        = 5
+    reset                = 13
+    cat                  = 29
+    hush              = 21
     wake_up          = 24
     dusk        = 25
     weekly_review     = 26
