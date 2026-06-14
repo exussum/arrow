@@ -11,9 +11,14 @@ brightens on the next press.
 - Maps keys to two kinds of action:
   - **Room buttons** — `(room, on|off|follow)` calls to `/api/room/{room}?state={state}`.
   - **Routine buttons** — named routines via `/api/console/{routine}`.
-- Starts dim. The first press of any key wakes the deck to full brightness and
-  schedules a re-dim after 60 seconds of inactivity (replaces any pending
-  re-dim job, so activity keeps the deck awake).
+- While a call is in flight, blanks the other keys and plays a per-action
+  countdown GIF on the pressed key; restores the icon set when the call
+  returns.
+- Reserves key position 31 as a help/labels toggle: pressing it swaps the
+  plain icons for label-overlay versions (and back).
+- Starts dim. The first press of any key wakes the deck to full brightness
+  and schedules a re-dim after 15 seconds of inactivity (replaces any
+  pending re-dim job, so activity keeps the deck awake).
 - Runs forever until interrupted, then shuts the scheduler down and closes the
   device.
 
