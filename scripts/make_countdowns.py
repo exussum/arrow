@@ -1,36 +1,22 @@
 #!/usr/bin/env python3
 
-import re
+import json
 import sys
-from pathlib import Path
+import urllib.request
 
-from arrow import BUTTONS, ICONS_DIR, ROUTINES
+from arrow import BUTTONS, HTTP_TIMEOUT, ICONS_DIR, ORC_BASE_URL, ROUTINES
 from arrow.img import save_countdown
 
-CONFIG_PATH = Path(__file__).resolve().parents[2] / "provision" / "roles" / "orc" / "files" / "config.md"
 OUT_DIR = ICONS_DIR / "countdowns"
 
 
-def parse_durations(text: str) -> dict[str, int]:
-    match = re.search(r"#####\s+Durations\s*\n(.*?)(?:\n-{3,}|\Z)", text, re.DOTALL)
-    if not match:
-        raise RuntimeError("Durations section not found in config")
-    durations: dict[str, int] = {}
-    for line in match.group(1).splitlines():
-        if not line.startswith("|"):
-            continue
-        cells = [c.strip() for c in line.strip("|").split("|")]
-        if len(cells) != 2:
-            continue
-        name, secs = cells
-        if name in ("Name", "") or set(name) <= {"-", ":"}:
-            continue
-        durations[name] = int(secs)
-    return durations
+def fetch_durations() -> dict[str, int]:
+    with urllib.request.urlopen(f"{ORC_BASE_URL}/api/durations", timeout=HTTP_TIMEOUT) as r:
+        return {name: int(secs) for name, secs in json.load(r).items()}
 
 
 def main() -> int:
-    durations = parse_durations(CONFIG_PATH.read_text())
+    durations = fetch_durations()
     missing: list[str] = []
 
     for button in BUTTONS.values():
