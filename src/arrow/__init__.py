@@ -7,7 +7,7 @@ ACTIVE_BRIGHTNESS = 100
 DIM_BRIGHTNESS = 0
 
 ORC_BASE_URL = "http://remote.int.exussum.org"
-HTTP_TIMEOUT = 120
+HTTP_TIMEOUT = 60
 
 ICONS_DIR = Path(__file__).resolve().parent / "icons"
 
