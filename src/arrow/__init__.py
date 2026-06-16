@@ -11,7 +11,7 @@ HTTP_TIMEOUT = 60
 
 ICONS_DIR = Path(__file__).resolve().parent / "icons"
 
-HELP_POSITION = 31
+PRESENCE_NAME = "me"
 
 
 @dataclass(frozen=True)
@@ -27,6 +27,12 @@ class Routine:
     display_name: str
 
 
+@dataclass(frozen=True)
+class Other:
+    slug: str
+    display_name: str
+
+
 class ButtonId(Enum):
     # name to position
     living_room_on     = 0
@@ -38,6 +44,12 @@ class ButtonId(Enum):
     office_on          = 16
     office_off         = 17
     office_follow      = 18
+
+
+class OtherId(Enum):
+    # name to position
+    presence = 7
+    help     = 31
 
 
 class RoutineId(Enum):
@@ -83,5 +95,12 @@ ROUTINES: dict[RoutineId, Routine] = {
 }
 
 
+OTHERS: dict[OtherId, Other] = {
+    OtherId.help:     Other("help",     "Help"),
+    OtherId.presence: Other("presence", "Check In"),
+}
+
+
 BUTTONS_BY_POSITION: dict[int, Button] = {bid.value: b for bid, b in BUTTONS.items()}
 ROUTINES_BY_POSITION: dict[int, Routine] = {rid.value: r for rid, r in ROUTINES.items()}
+OTHERS_BY_POSITION: dict[int, Other] = {oid.value: o for oid, o in OTHERS.items()}

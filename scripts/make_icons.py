@@ -2,7 +2,7 @@
 
 from PIL import Image
 
-from arrow import BUTTONS, ICONS_DIR, ROUTINES
+from arrow import BUTTONS, ICONS_DIR, OTHERS, ROUTINES
 from arrow.img import (
     OFF_COLOR,
     ON_COLOR,
@@ -44,6 +44,11 @@ ROOMS = {
     "living_room": "\U0001F6CB️",
     "office":      "\U0001F5A5️",
     "kitchen":     "\U0001F37D️",
+}
+
+OTHER_ICONS = {
+    "help":     "❓",
+    "presence": "\U0001F64B",  # 🙋
 }
 
 ROUTINE_ICONS = {
@@ -115,7 +120,9 @@ def main():
         seen_routines.add(routine.slug)
         label_image(wrap_words(routine.display_name)).save(routine_labels / f"{routine.slug}.png")
 
-    emoji_base("❓").save(ICONS_DIR / "help.png")  # ❓
+    for other in OTHERS.values():
+        emoji_base(OTHER_ICONS[other.slug]).save(ICONS_DIR / f"{other.slug}.png")
+        label_image(wrap_words(other.display_name)).save(labels_root / f"{other.slug}.png")
 
 
 if __name__ == "__main__":
