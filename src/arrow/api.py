@@ -16,8 +16,10 @@ from arrow import (
     BUTTONS_BY_POSITION,
     DIM_BRIGHTNESS,
     DIM_DELAY_SECONDS,
-    HELP_POSITION,
     ICONS_DIR,
+    OTHERS,
+    PRESENCE_NAME,
+    OtherId,
     ROUTINES,
     ROUTINES_BY_POSITION,
 )
@@ -30,7 +32,6 @@ class NativeCache:
     labels: dict[int, bytes]
     frames: dict[Path, list[bytes]]
     blank: bytes
-    help: bytes
 
 
 class State:
@@ -55,7 +56,6 @@ def initialize_deck(deck):
         labels=_build_icon_cache(deck, label=True),
         frames=_build_gif_cache(deck),
         blank=_to_native(deck, Image.new("RGB", (144, 144), "black")),
-        help=_open_native(deck, ICONS_DIR / "help.png"),
     )
     _upload_icons(deck)
     deck.set_brightness(DIM_BRIGHTNESS)
@@ -78,10 +78,13 @@ def on_key_change(deck, state, scheduler, key, pressed):
             _schedule_dim(scheduler, deck, state)
             return
 
-    if key == HELP_POSITION:
+    if key == OtherId.help.value:
         with state.lock:
             state.show_labels = not state.show_labels
         _upload_icons(deck, state)
+        _schedule_dim(scheduler, deck, state)
+    elif key == OtherId.presence.value:
+        dal.call_presence(PRESENCE_NAME)
         _schedule_dim(scheduler, deck, state)
     elif (button := BUTTONS_BY_POSITION.get(key)) is not None:
         gif = ICONS_DIR / "countdowns" / button.action / f"{button.slug}.gif"
@@ -134,7 +137,6 @@ def _upload_icons(deck, state=None):
     with deck:
         for key, native in icons.items():
             deck.set_key_image(key, native)
-        deck.set_key_image(HELP_POSITION, _cache.help)
 
 
 def _apply_brightness(deck, state, level):
@@ -183,10 +185,11 @@ def _gif_frames_native(deck, path: Path):
 def _icon_targets(label: bool = False):
     base = ICONS_DIR / "labels" if label else ICONS_DIR
     return [
-        (id_value, base / action / f"{slug}.png")
-        for id_value, action, slug in chain(
-            ((bid.value, button.action, button.slug) for bid, button in BUTTONS.items()),
-            ((rid.value, "routines", routine.slug) for rid, routine in ROUTINES.items()),
+        (id_value, path)
+        for id_value, path in chain(
+            ((bid.value, base / button.action / f"{button.slug}.png") for bid, button in BUTTONS.items()),
+            ((rid.value, base / "routines" / f"{routine.slug}.png") for rid, routine in ROUTINES.items()),
+            ((oid.value, base / f"{other.slug}.png") for oid, other in OTHERS.items()),
         )
     ]
 

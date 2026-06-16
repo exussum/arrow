@@ -19,3 +19,12 @@ def call_routine(routine):
         urllib.request.urlopen(url, timeout=HTTP_TIMEOUT).close()
     except Exception as e:
         print(f"call failed {routine}: {e}", file=sys.stderr)
+
+
+def call_presence(name):
+    url = f"{ORC_BASE_URL}/api/presence/{urllib.parse.quote(name)}/checkin"
+    req = urllib.request.Request(url, method="POST")
+    try:
+        urllib.request.urlopen(req, timeout=HTTP_TIMEOUT).close()
+    except Exception as e:
+        print(f"call failed presence {name}: {e}", file=sys.stderr)
