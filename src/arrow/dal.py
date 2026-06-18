@@ -22,7 +22,7 @@ def call_routine(routine):
 
 
 def call_presence(name):
-    url = f"{ORC_BASE_URL}/api/presence/{urllib.parse.quote(name)}/checkin"
+    url = f"{ORC_BASE_URL}/api/presence/{urllib.parse.quote(name)}/checkin?ignore-version=1"
     req = urllib.request.Request(url, method="POST")
     try:
         urllib.request.urlopen(req, timeout=HTTP_TIMEOUT).close()
