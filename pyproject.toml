@@ -6,7 +6,6 @@ requires = [
 
 [project]
 dependencies = [
-    "APScheduler==3.11.2",
     "Pillow==12.2.0",
     "streamdeck==0.9.5",
 ]

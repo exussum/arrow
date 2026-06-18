@@ -1,36 +1,18 @@
-from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
+
+from arrow.models import Button, Other, Routine
 
 DIM_DELAY_SECONDS = 15
 ACTIVE_BRIGHTNESS = 100
 DIM_BRIGHTNESS = 0
 
-ORC_BASE_URL = "http://remote.int.exussum.org"
+ORC_BASE_URL = "https://remote.int.exussum.org"
 HTTP_TIMEOUT = 60
 
 ICONS_DIR = Path(__file__).resolve().parent / "icons"
 
 PRESENCE_NAME = "me"
-
-
-@dataclass(frozen=True)
-class Button:
-    slug: str
-    display_name: str
-    action: str
-
-
-@dataclass(frozen=True)
-class Routine:
-    slug: str
-    display_name: str
-
-
-@dataclass(frozen=True)
-class Other:
-    slug: str
-    display_name: str
 
 
 class ButtonId(Enum):
