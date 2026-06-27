@@ -3,11 +3,10 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageEnhance, ImageFont, ImageMath
 
 SIZE = 144
-TRI = 42
-BADGE = 56
-ON_COLOR = (0, 200, 0, 255)
-OFF_COLOR = (220, 0, 0, 255)
+BADGE = 112
+BULB_BADGE = 84
 PUSHPIN = "\U0001F4CC"
+BULB = "\U0001F4A1"
 
 EMOJI_FONT_PATH = "/System/Library/Fonts/Apple Color Emoji.ttc"
 EMOJI_NATIVE = 160
@@ -44,15 +43,23 @@ def emoji_base(emoji: str) -> Image.Image:
     return img
 
 
-def add_triangle(img: Image.Image, color) -> None:
-    ImageDraw.Draw(img).polygon(
-        [(SIZE, SIZE), (SIZE - TRI, SIZE), (SIZE, SIZE - TRI)],
-        fill=color,
-    )
+def _paste_emoji_br(img: Image.Image, badge: Image.Image) -> None:
+    size = badge.width
+    overflow = max(0, size - SIZE)
+    dest = (max(0, SIZE - size), max(0, SIZE - size))
+    img.alpha_composite(badge, dest=dest, source=(overflow, overflow))
+
+
+def add_bulb_on(img: Image.Image) -> None:
+    _paste_emoji_br(img, render_emoji(BULB, BULB_BADGE))
+
+
+def add_bulb_off(img: Image.Image) -> None:
+    _paste_emoji_br(img, desaturate(render_emoji(BULB, BULB_BADGE)))
 
 
 def add_pushpin(img: Image.Image) -> None:
-    _paste_emoji(img, PUSHPIN, BADGE, (SIZE - BADGE, SIZE - BADGE))
+    _paste_emoji_br(img, render_emoji(PUSHPIN, BULB_BADGE))
 
 
 def diagonal(top_left_emoji: str, bottom_right_emoji: str) -> Image.Image:
@@ -93,6 +100,25 @@ def _draw_h_centered(
         font=font,
         fill=fg,
     )
+
+
+def add_label_text(img: Image.Image, text: str, font_size: int = 20) -> None:
+    font = ImageFont.truetype(TEXT_FONT_PATH, font_size)
+    draw = ImageDraw.Draw(img)
+    lines = text.split("\n")
+    line_h = max(draw.textbbox((0, 0), l, font=font)[3] for l in lines) + 4
+    y = int(SIZE * 0.25)
+    for line in lines:
+        draw.text(
+            (SIZE // 2, y),
+            line,
+            font=font,
+            anchor="mt",
+            fill=(0, 0, 0, 255),
+            stroke_width=2,
+            stroke_fill=(255, 255, 255, 255),
+        )
+        y += line_h
 
 
 def _text_frame(text: str, fg: str = "white", bg: str = "black") -> Image.Image:

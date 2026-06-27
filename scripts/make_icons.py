@@ -4,12 +4,12 @@ from PIL import Image
 
 from arrow import BUTTONS, ICONS_DIR, OTHERS, ROUTINES
 from arrow.img import (
-    OFF_COLOR,
-    ON_COLOR,
     PAIR_TARGET,
     SIZE,
+    add_bulb_off,
+    add_bulb_on,
+    add_label_text,
     add_pushpin,
-    add_triangle,
     desaturate,
     diagonal,
     emoji_base,
@@ -63,8 +63,8 @@ ROUTINE_ICONS = {
 }
 
 VARIANTS = {
-    "on":     lambda img: add_triangle(img, ON_COLOR),
-    "off":    lambda img: add_triangle(img, OFF_COLOR),
+    "on":     add_bulb_on,
+    "off":    add_bulb_off,
     "follow": add_pushpin,
 }
 
@@ -81,8 +81,19 @@ def main():
     routines_out = ICONS_DIR / "routines"
     routines_out.mkdir(parents=True, exist_ok=True)
     for name, emoji in ROUTINE_ICONS.items():
+        if name == "all_lights_on":
+            continue
         img = emoji_base(emoji)
         img.save(routines_out / f"{name}.png")
+
+    all_lights_emoji = "\U0001F4A1"
+    img = emoji_base(all_lights_emoji)
+    add_label_text(img, "All\nlights", font_size=40)
+    img.save(routines_out / "all_lights_on.png")
+
+    img = desaturate(emoji_base(all_lights_emoji))
+    add_label_text(img, "All\nlights", font_size=40)
+    img.save(routines_out / "all_lights_off.png")
 
     partial = diagonal("\U0001F4FA", "\U0001F4A1")  # 📺 + 💡
     partial.save(routines_out / "partial_tv_lights.png")
