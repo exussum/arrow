@@ -3,27 +3,16 @@ from unittest.mock import patch
 from arrow import dal
 
 
-class TestCallRoom:
-    @patch("arrow.dal.urllib.request.urlopen")
-    def test_builds_correct_url(self, urlopen):
-        dal.call_room("hall", "on")
-        assert urlopen.call_args[0][0] == "https://remote.int.exussum.example/api/room/hall?state=on"
-
-    @patch("arrow.dal.urllib.request.urlopen")
-    def test_url_encodes_spaces(self, urlopen):
-        dal.call_room("hall", "on")
-        assert "living%20room" in urlopen.call_args[0][0]
-
-    @patch("arrow.dal.urllib.request.urlopen", side_effect=Exception("timeout"))
-    def test_swallows_exceptions(self, _):
-        dal.call_room("hall", "on")
-
-
 class TestCallRoutine:
     @patch("arrow.dal.urllib.request.urlopen")
     def test_builds_correct_url(self, urlopen):
         dal.call_routine("goodnight")
         assert urlopen.call_args[0][0] == "https://remote.int.exussum.example/api/console/goodnight"
+
+    @patch("arrow.dal.urllib.request.urlopen")
+    def test_room_action_uses_console_endpoint(self, urlopen):
+        dal.call_routine("hall_on")
+        assert urlopen.call_args[0][0] == "https://remote.int.exussum.example/api/console/hall_on"
 
     @patch("arrow.dal.urllib.request.urlopen", side_effect=Exception("timeout"))
     def test_swallows_exceptions(self, _):
