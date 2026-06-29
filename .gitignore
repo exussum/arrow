@@ -1,2 +1,11 @@
 dist/
 build/
+*.pyc
+__pycache__/
+.pytest_cache/
+.DS_Store
+*.sw[mnop]
+.coverage
+*.prof
+dev.sh
+src/config.md

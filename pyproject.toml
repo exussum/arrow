@@ -11,8 +11,12 @@ dependencies = [
 ]
 name = "arrow"
 version = "0.0.1"
+requires-python = ">=3.11"
 
 [project.optional-dependencies]
+test = [
+    "pytest==9.0.3",
+]
 lint = [
     "black==26.5.1",
     "isort==8.0.1",
@@ -32,7 +36,7 @@ line-length = 140
 [tool.isort]
 profile = "black"
 src_paths = ["src/arrow"]
-known_third_party = ["apscheduler", "StreamDeck"]
+known_third_party = ["StreamDeck"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/arrow"]
