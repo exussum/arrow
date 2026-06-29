@@ -17,11 +17,11 @@ from arrow import (
     ICONS_DIR,
     OTHERS,
     PRESENCE_NAME,
-    OtherId,
     ROUTINES,
     ROUTINES_BY_POSITION,
+    OtherId,
+    dal,
 )
-from arrow import dal
 from arrow.models import Dispatch, IconMode
 
 
@@ -130,12 +130,14 @@ class DeckManager:
             ICONS_DIR / "countdowns" / "presence.gif",
             partial(dal.call_presence, PRESENCE_NAME),
         ),
-        **{pos: Dispatch(ICONS_DIR / "countdowns" / b.action / f"{b.slug}.gif",
-                         partial(dal.call_room, b.display_name, b.action))
-           for pos, b in BUTTONS_BY_POSITION.items()},
-        **{pos: Dispatch(ICONS_DIR / "countdowns" / "routines" / f"{r.slug}.gif",
-                         partial(dal.call_routine, r.display_name))
-           for pos, r in ROUTINES_BY_POSITION.items()},
+        **{
+            pos: Dispatch(ICONS_DIR / "countdowns" / b.action / f"{b.slug}.gif", partial(dal.call_room, b.display_name, b.action))
+            for pos, b in BUTTONS_BY_POSITION.items()
+        },
+        **{
+            pos: Dispatch(ICONS_DIR / "countdowns" / "routines" / f"{r.slug}.gif", partial(dal.call_routine, r.display_name))
+            for pos, r in ROUTINES_BY_POSITION.items()
+        },
     }
 
     def __init__(self, brightness, display):
