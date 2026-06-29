@@ -38,6 +38,11 @@ profile = "black"
 src_paths = ["src/arrow"]
 known_third_party = ["StreamDeck"]
 
+[tool.pytest.ini_options]
+minversion = "9.0"
+pythonpath = ["src"]
+testpaths = ["tests"]
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/arrow"]
 include = [
