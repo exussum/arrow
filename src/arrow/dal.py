@@ -6,7 +6,7 @@ from arrow import HTTP_TIMEOUT, ORC_BASE_URL
 
 
 def call_routine(routine):
-    url = f"{ORC_BASE_URL}/api/console/{urllib.parse.quote(routine)}"
+    url = f"{ORC_BASE_URL}/api/run/{urllib.parse.quote(routine)}"
     try:
         urllib.request.urlopen(url, timeout=HTTP_TIMEOUT).close()
     except Exception as e:

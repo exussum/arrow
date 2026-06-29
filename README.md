@@ -9,12 +9,12 @@ brightens on the next press.
 
 - Enumerates the first attached Stream Deck and uploads icons to its keys.
 - Maps keys to two kinds of action:
-  - **Room buttons** — `(room, on|off|follow)` calls to `/api/room/{room}?state={state}`.
-  - **Routine buttons** — named routines via `/api/console/{routine}`.
+  - **Room buttons** — `{slug}_{action}` routine calls to `/api/run/{routine}`.
+  - **Routine buttons** — named routines via `/api/run/{routine}`.
 - While a call is in flight, blanks the other keys and plays a per-action
   countdown GIF on the pressed key; restores the icon set when the call
   returns.
-- Reserves key 7 as a presence toggle (check-in/check-out) and key 31 as a
+- Reserves key 7 as a presence check-in button and key 31 as a
   help/labels toggle: pressing it swaps the plain icons for label-overlay
   versions (and back).
 - Starts dim. The first press of any key wakes the deck to full brightness
@@ -56,12 +56,11 @@ arrow
 
 ## Build and deploy
 
-`scripts/upload.sh` checks for uncommitted changes, injects a `_build.py`
-with the current git SHA and timestamp, builds a wheel with `uv`, and uploads
-it to an internal package registry.
+`scripts/upload.sh` checks for uncommitted changes, builds a wheel with `uv`,
+and uploads it to an internal package registry.
 
-`scripts/install.sh` is the remote-side install script: it syncs dependencies
-via `uv`, swaps the wheel, and restarts the supervised `arrow` service.
+`scripts/install.sh` is the remote-side install script: it swaps the wheel
+via `pip` and restarts the supervised `arrow` service.
 
 `scripts/build-and-install.sh` runs both in sequence — upload then ssh deploy.
 
