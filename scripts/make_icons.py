@@ -40,31 +40,32 @@ def wrap_words(text: str, max_chars: int = 10) -> list[str]:
 def label_image(lines: list[str], font_size: int = LABEL_FONT_SIZE):
     return multiline_frame(lines, font_size)
 
+
 ROOMS = {
-    "hall": "\U0001F6CB️",
-    "study":      "\U0001F5A5️",
-    "garden":     "\U0001F37D️",
+    "hall": "\U0001f6cb️",
+    "study": "\U0001f5a5️",
+    "garden": "\U0001f37d️",
 }
 
 OTHER_ICONS = {
-    "help":     "❓",
-    "presence": "\U0001F64B",  # 🙋
+    "help": "❓",
+    "presence": "\U0001f64b",  # 🙋
 }
 
 ROUTINE_ICONS = {
-    "goodnight":             "\U0001F4A4",  # 💤
-    "movie_night":            "\U0001F4FA",  # 📺
-    "nightlights": "\U0001F56F",  # 🕯
-    "everything":        "\U0001F4A1",  # 💡
-    "cat":                  "\U0001F415",  # 🐕
-    "hush":              "\U0001F507",  # 🔇
-    "wake_up":          "⚛️", # ⚛️
-    "weekly_review":     "\U0001F4C5",  # 📅
+    "goodnight": "\U0001f4a4",  # 💤
+    "movie_night": "\U0001f4fa",  # 📺
+    "nightlights": "\U0001f56f",  # 🕯
+    "everything": "\U0001f4a1",  # 💡
+    "cat": "\U0001f415",  # 🐕
+    "hush": "\U0001f507",  # 🔇
+    "wake_up": "⚛️",  # ⚛️
+    "weekly_review": "\U0001f4c5",  # 📅
 }
 
 VARIANTS = {
-    "on":     add_bulb_on,
-    "off":    add_bulb_off,
+    "on": add_bulb_on,
+    "off": add_bulb_off,
     "follow": add_pushpin,
 }
 
@@ -86,7 +87,7 @@ def main():
         img = emoji_base(emoji)
         img.save(routines_out / f"{name}.png")
 
-    all_lights_emoji = "\U0001F4A1"
+    all_lights_emoji = "\U0001f4a1"
     img = emoji_base(all_lights_emoji)
     add_label_text(img, "All\nlights", font_size=40)
     img.save(routines_out / "everything.png")
@@ -95,19 +96,19 @@ def main():
     add_label_text(img, "All\nlights", font_size=40)
     img.save(routines_out / "everything_off.png")
 
-    partial = diagonal("\U0001F4FA", "\U0001F4A1")  # 📺 + 💡
+    partial = diagonal("\U0001f4fa", "\U0001f4a1")  # 📺 + 💡
     partial.save(routines_out / "dim_the_hall.png")
 
     reset = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
-    off_bulb = desaturate(render_emoji("\U0001F4A1", PAIR_TARGET))
+    off_bulb = desaturate(render_emoji("\U0001f4a1", PAIR_TARGET))
     reset.alpha_composite(off_bulb, (0, 0))
     reset.alpha_composite(
-        render_emoji("\U0001F507", PAIR_TARGET),  # 🔇
+        render_emoji("\U0001f507", PAIR_TARGET),  # 🔇
         (SIZE - PAIR_TARGET, SIZE - PAIR_TARGET),
     )
     reset.save(routines_out / "reset.png")
 
-    dusk = swap_white_to_black(emoji_base("\U0001F306"))  # 🌆
+    dusk = swap_white_to_black(emoji_base("\U0001f306"))  # 🌆
     dusk.save(routines_out / "dusk.png")
 
     labels_root = ICONS_DIR / "labels"

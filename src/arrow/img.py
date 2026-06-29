@@ -5,8 +5,8 @@ from PIL import Image, ImageDraw, ImageEnhance, ImageFont, ImageMath
 SIZE = 144
 BADGE = 112
 BULB_BADGE = 84
-PUSHPIN = "\U0001F4CC"
-BULB = "\U0001F4A1"
+PUSHPIN = "\U0001f4cc"
+BULB = "\U0001f4a1"
 
 EMOJI_FONT_PATH = "/System/Library/Fonts/Apple Color Emoji.ttc"
 EMOJI_NATIVE = 160
@@ -78,7 +78,11 @@ def swap_white_to_black(img: Image.Image, threshold: int = 200) -> Image.Image:
     r, g, b, a = img.split()
     mask = ImageMath.unsafe_eval(
         'convert(((r >= t) & (g >= t) & (b >= t) & (a > 0)) * 255, "L")',
-        r=r, g=g, b=b, a=a, t=threshold,
+        r=r,
+        g=g,
+        b=b,
+        a=a,
+        t=threshold,
     )
     black = Image.new("RGBA", img.size)
     black.putalpha(a)
@@ -90,9 +94,7 @@ def _text_height(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.FreeTypeF
     return b[3] - b[1]
 
 
-def _draw_h_centered(
-    draw: ImageDraw.ImageDraw, text: str, font: ImageFont.FreeTypeFont, top: int, fg: str
-) -> None:
+def _draw_h_centered(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.FreeTypeFont, top: int, fg: str) -> None:
     bbox = draw.textbbox((0, 0), text, font=font)
     draw.text(
         ((SIZE - (bbox[2] - bbox[0])) // 2 - bbox[0], top - bbox[1]),

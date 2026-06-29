@@ -1,8 +1,7 @@
 import sys
 import threading
 
-from arrow import DIM_BRIGHTNESS
-from arrow import api
+from arrow import DIM_BRIGHTNESS, api
 
 
 def main():
