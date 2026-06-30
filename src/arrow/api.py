@@ -1,3 +1,4 @@
+import random
 import sys
 import threading
 from functools import partial
@@ -104,7 +105,9 @@ class DisplayManager:
             case _:
                 raise ValueError(f"unhandled IconMode: {mode}")
         with self.deck:
-            for key, native in icons.items():
+            items = list(icons.items())
+            random.shuffle(items)
+            for key, native in items:
                 self.deck.set_key_image(key, native)
 
     def toggle_labels(self):
