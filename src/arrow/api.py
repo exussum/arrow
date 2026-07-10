@@ -134,7 +134,7 @@ class DeckManager:
             partial(dal.call_presence, PRESENCE_NAME),
         ),
         **{
-            pos: Dispatch(ICONS_DIR / "countdowns" / b.action / f"{b.slug}.gif", partial(dal.call_room, b.slug, b.action))
+            pos: Dispatch(ICONS_DIR / "countdowns" / b.action / f"{b.slug}.gif", partial(dal.call_room, b.display_name, b.action))
             for pos, b in BUTTONS_BY_POSITION.items()
         },
         **{
