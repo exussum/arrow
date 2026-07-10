@@ -9,6 +9,12 @@ repos:
     hooks:
       - id: isort
 
+  - repo: https://github.com/semgrep/pre-commit
+    rev: v1.168.0
+    hooks:
+      - id: semgrep
+        args: ["--config", "p/python", "--error", "--skip-unknown-extensions"]
+
   - repo: local
     hooks:
       - id: pytest
