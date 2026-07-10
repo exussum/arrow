@@ -20,7 +20,7 @@ test = [
 lint = [
     "black==26.5.1",
     "isort==8.0.1",
-    "pyflakes==3.4.0",
+    "semgrep==1.168.0",
 ]
 build = [
     "twine==6.2.0",
