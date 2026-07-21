@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageEnhance, ImageFont, ImageMath
@@ -29,7 +30,7 @@ _processing_font = ImageFont.truetype(TEXT_FONT_PATH, PROCESSING_FONT_SIZE)
 def render_emoji(emoji: str, target_size: int) -> Image.Image:
     raw = Image.new("RGBA", (EMOJI_NATIVE, EMOJI_NATIVE), (0, 0, 0, 0))
     ImageDraw.Draw(raw).text((0, 0), emoji, font=_emoji_font, embedded_color=True)
-    return raw.resize((target_size, target_size), Image.LANCZOS)
+    return raw.resize((target_size, target_size), Image.Resampling.LANCZOS)
 
 
 def _paste_emoji(img: Image.Image, emoji: str, target: int, pos: tuple[int, int]) -> None:
@@ -91,7 +92,7 @@ def swap_white_to_black(img: Image.Image, threshold: int = 200) -> Image.Image:
 
 def _text_height(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.FreeTypeFont) -> int:
     b = draw.textbbox((0, 0), text, font=font)
-    return b[3] - b[1]
+    return int(b[3] - b[1])
 
 
 def _draw_h_centered(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.FreeTypeFont, top: int, fg: str) -> None:
@@ -108,7 +109,7 @@ def add_label_text(img: Image.Image, text: str, font_size: int = 20) -> None:
     font = ImageFont.truetype(TEXT_FONT_PATH, font_size)
     draw = ImageDraw.Draw(img)
     lines = text.split("\n")
-    line_h = max(draw.textbbox((0, 0), l, font=font)[3] for l in lines) + 4
+    line_h = int(max(draw.textbbox((0, 0), l, font=font)[3] for l in lines)) + 4
     y = int(SIZE * 0.25)
     for line in lines:
         draw.text(
@@ -133,7 +134,7 @@ def _text_frame(text: str, fg: str = "white", bg: str = "black") -> Image.Image:
     return frame
 
 
-def multiline_frame(lines, font_size: int, fg: str = "white", bg: str = "black") -> Image.Image:
+def multiline_frame(lines: Sequence[str], font_size: int, fg: str = "white", bg: str = "black") -> Image.Image:
     frame = Image.new("RGB", (SIZE, SIZE), bg)
     draw = ImageDraw.Draw(frame)
     font = ImageFont.truetype(TEXT_FONT_PATH, font_size)
