@@ -7,7 +7,7 @@ requires = [
 [project]
 dependencies = [
     "Pillow==12.3.0",
-    "streamdeck==0.9.5",
+    "streamdeck==0.9.8",
 ]
 name = "arrow"
 version = "0.0.1"
@@ -15,14 +15,14 @@ requires-python = ">=3.11"
 
 [project.optional-dependencies]
 test = [
-    "pytest==9.0.3",
+    "pytest==9.1.1",
 ]
 lint = [
     "black==26.5.1",
     "isort==8.0.1",
-    "mypy==2.2.0",
-    "pip-audit==2.9.0",
-    "semgrep==1.168.0",
+    "mypy==2.3.0",
+    "pip-audit==2.10.1",
+    "semgrep==1.169.0",
 ]
 build = [
     "twine==6.2.0",

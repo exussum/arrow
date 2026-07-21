@@ -11,3 +11,4 @@ __pycache__/
 *.prof
 dev.sh
 src/config.md
+pylock.toml
