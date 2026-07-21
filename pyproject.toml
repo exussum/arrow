@@ -6,7 +6,7 @@ requires = [
 
 [project]
 dependencies = [
-    "Pillow==12.2.0",
+    "Pillow==12.3.0",
     "streamdeck==0.9.5",
 ]
 name = "arrow"
@@ -20,6 +20,8 @@ test = [
 lint = [
     "black==26.5.1",
     "isort==8.0.1",
+    "mypy==2.2.0",
+    "pip-audit==2.9.0",
     "semgrep==1.168.0",
 ]
 build = [
@@ -37,6 +39,13 @@ line-length = 140
 profile = "black"
 src_paths = ["src/arrow"]
 known_third_party = ["StreamDeck"]
+
+[tool.mypy]
+files = ["src/arrow"]
+ignore_missing_imports = true
+warn_unused_ignores = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
 
 [tool.pytest.ini_options]
 minversion = "9.0"

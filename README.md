@@ -38,8 +38,10 @@ scripts/
   upload.sh           build wheel and push to internal registry
   install.sh          remote install script (run via ssh)
   build-and-install.sh  upload + ssh deploy in one step
-  run-tests.sh        run pytest
 ```
+
+Run the checks with `uv run --extra test pytest` (or `pre-commit run --all-files`
+for the full lint/type/audit/test suite).
 
 Key map and routine map live in `src/arrow/__init__.py`. The orchestrator base
 URL (`ORC_BASE_URL`) is configured there too.

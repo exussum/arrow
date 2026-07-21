@@ -1,3 +1,6 @@
+default_language_version:
+  python: python3.14
+
 repos:
   - repo: https://github.com/psf/black
     rev: 26.3.1
@@ -17,9 +20,37 @@ repos:
 
   - repo: local
     hooks:
-      - id: pytest
-        name: pytest
-        entry: scripts/run-tests.sh
-        language: script
+      - id: uv-lock
+        name: uv-lock
+        entry: uv lock
+        language: system
+        pass_filenames: false
+        files: ^(pyproject\.toml|uv\.lock)$
+
+      - id: pylock
+        name: pylock
+        entry: uv export --frozen --format pylock.toml -o pylock.toml
+        language: system
+        pass_filenames: false
+        files: ^(pyproject\.toml|uv\.lock|pylock\.toml)$
+
+      - id: pip-audit
+        name: pip-audit
+        entry: uv run --extra lint pip-audit --locked .
+        language: system
         pass_filenames: false
         always_run: true
+
+      - id: mypy
+        name: mypy
+        entry: uv run --extra lint mypy
+        language: system
+        pass_filenames: false
+        files: \.py$
+
+      - id: pytest
+        name: pytest
+        entry: uv run --extra test pytest
+        language: system
+        pass_filenames: false
+        files: \.py$
