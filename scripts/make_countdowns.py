@@ -13,7 +13,7 @@ PRESENCE_DURATION = 1
 
 def fetch_durations() -> dict[str, int]:
     with urllib.request.urlopen(f"{ORC_BASE_URL}/api/durations", timeout=HTTP_TIMEOUT) as r:
-        return {name: int(secs) for name, secs in json.load(r).items()}
+        return {name: int(sample["avg"]) for name, sample in json.load(r).items()}
 
 
 def main() -> int:
