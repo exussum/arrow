@@ -22,10 +22,10 @@ lint = [
     "isort==8.0.1",
     "mypy==2.3.0",
     "pip-audit==2.10.1",
-    "semgrep==1.170.0",
+    "semgrep==1.171.0",
 ]
 build = [
-    "twine==6.2.0",
+    "twine==7.0.0",
     "build==1.5.0",
 ]
 
