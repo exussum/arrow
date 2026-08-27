@@ -12,3 +12,4 @@ __pycache__/
 dev.sh
 src/config.md
 pylock.toml
+scripts/deploy.env
