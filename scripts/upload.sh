@@ -7,6 +7,10 @@ if [ -n "$(git status --porcelain)" ]; then
 fi
 
 rm -rf dist
-uv pip install '.[build]'
 uv build --wheel
-uv run --no-sync twine upload -u a -p a --repository-url http://registry.int.exussum.org dist/arrow-*.whl
+
+export UV_PUBLISH_USERNAME=a
+export UV_PUBLISH_PASSWORD=a
+export UV_PUBLISH_URL=http://registry.int.exussum.org
+
+uv publish dist/arrow-*.whl
