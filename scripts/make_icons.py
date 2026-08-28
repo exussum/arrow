@@ -4,8 +4,10 @@ from PIL import Image
 
 from arrow import BUTTONS, ICONS_DIR, OTHERS, ROUTINES
 from arrow.img import (
+    DELAYED_LINES,
     PAIR_TARGET,
     SIZE,
+    WAITING_FONT_SIZE,
     add_bulb_off,
     add_bulb_on,
     add_label_text,
@@ -135,6 +137,8 @@ def main():
     for other in OTHERS.values():
         emoji_base(OTHER_ICONS[other.slug]).save(ICONS_DIR / f"{other.slug}.png")
         label_image(wrap_words(other.display_name)).save(labels_root / f"{other.slug}.png")
+
+    multiline_frame(DELAYED_LINES, WAITING_FONT_SIZE).save(ICONS_DIR / "delayed.png")
 
 
 if __name__ == "__main__":
