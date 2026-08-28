@@ -28,4 +28,4 @@ class Other:
     display_name: str
 
 
-Dispatch = namedtuple("Dispatch", ["gif", "action"])
+Dispatch = namedtuple("Dispatch", ["gif", "action", "name"], defaults=[None])

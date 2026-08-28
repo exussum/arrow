@@ -19,6 +19,7 @@ TEXT_FONT_SIZE = 110
 
 WAITING_LINES = ("Waiting", "for routine", "to finish")
 WAITING_FONT_SIZE = 22
+DELAYED_LINES = ("Delayed", "will run", "after wait")
 PROCESSING_TEXT = "processing..."
 PROCESSING_FONT_SIZE = 18
 
@@ -109,7 +110,7 @@ def add_label_text(img: Image.Image, text: str, font_size: int = 20) -> None:
     font = ImageFont.truetype(TEXT_FONT_PATH, font_size)
     draw = ImageDraw.Draw(img)
     lines = text.split("\n")
-    line_h = int(max(draw.textbbox((0, 0), l, font=font)[3] for l in lines)) + 4
+    line_h = int(max(draw.textbbox((0, 0), line, font=font)[3] for line in lines)) + 4
     y = int(SIZE * 0.25)
     for line in lines:
         draw.text(
@@ -144,6 +145,10 @@ def multiline_frame(lines: Sequence[str], font_size: int, fg: str = "white", bg:
         _draw_h_centered(draw, line, font, y, fg)
         y += line_height
     return frame
+
+
+def delayed_frame() -> Image.Image:
+    return multiline_frame(DELAYED_LINES, WAITING_FONT_SIZE)
 
 
 def save_countdown(seconds: int, out_path: Path, frame_ms: int = 1000) -> None:

@@ -1,9 +1,10 @@
 import threading
+from datetime import timedelta
 from pathlib import Path
 
 import pytest
 
-from arrow import ACTIVE_BRIGHTNESS, DIM_BRIGHTNESS, OtherId
+from arrow import ACTIVE_BRIGHTNESS, DELAY_NOTICE_SECONDS, DIM_BRIGHTNESS, OtherId, api, dal
 from arrow.api import DeckManager, DisplayManager, ImageManager
 from arrow.models import Dispatch
 
@@ -13,6 +14,7 @@ ICON = b"icon"
 LABEL = b"label"
 BLANK = b"blank"
 FRAME = b"frame"
+DELAYED = b"delayed"
 
 
 class FakeDeck:
@@ -40,6 +42,7 @@ def make_display_manager():
         labels={k: LABEL for k in KEYS},
         frames={GIF: [FRAME]},
         blank={k: BLANK for k in KEYS},
+        delayed={k: DELAYED for k in KEYS},
     )
     return DisplayManager(deck=deck, cache=cache), deck
 
@@ -141,6 +144,31 @@ class TestRun:
         with pytest.raises(RuntimeError):
             manager._run(0, GIF, action)
         assert uploaded(deck)[-len(KEYS) :] == [ICON] * len(KEYS)
+
+    def test_shows_delayed_notice_when_delay_present(self, make_manager, monkeypatch):
+        manager, deck = make_manager(brightness=ACTIVE_BRIGHTNESS)
+        monkeypatch.setattr(dal, "get_delay", lambda name: timedelta(minutes=3))
+        sleeps = []
+        monkeypatch.setattr(api.time, "sleep", sleeps.append)
+        calls = []
+        manager._run(0, GIF, lambda: calls.append(0), name="Bed Time")
+        assert deck.key_images[0] == (0, DELAYED)
+        assert sleeps == [DELAY_NOTICE_SECONDS]
+        assert calls == [0]
+
+    def test_no_delayed_notice_when_no_delay(self, make_manager, monkeypatch):
+        manager, deck = make_manager(brightness=ACTIVE_BRIGHTNESS)
+        monkeypatch.setattr(dal, "get_delay", lambda name: None)
+        manager._run(0, GIF, lambda: None, name="Bed Time")
+        assert DELAYED not in uploaded(deck)
+
+    def test_no_delayed_notice_when_name_is_none(self, make_manager, monkeypatch):
+        manager, deck = make_manager(brightness=ACTIVE_BRIGHTNESS)
+        checked = []
+        monkeypatch.setattr(dal, "get_delay", lambda name: checked.append(name) or timedelta(minutes=1))
+        manager._run(0, GIF, lambda: None)
+        assert checked == []
+        assert DELAYED not in uploaded(deck)
 
 
 class TestDisplayManagerLabels:

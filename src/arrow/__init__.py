@@ -6,6 +6,7 @@ from arrow.models import Button, Other, Routine
 DIM_DELAY_SECONDS = 15
 ACTIVE_BRIGHTNESS = 100
 DIM_BRIGHTNESS = 0
+DELAY_NOTICE_SECONDS = 5
 
 ORC_BASE_URL = "https://remote.int.exussum.org"
 HTTP_TIMEOUT = 60
