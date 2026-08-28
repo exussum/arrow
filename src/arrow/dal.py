@@ -12,7 +12,8 @@ def _send(url: str, label: str, data: bytes | None = None) -> None:
     try:
         urllib.request.urlopen(url, data=data, timeout=HTTP_TIMEOUT).close()
     except Exception as e:
-        print(f"call failed {label}: {e}", file=sys.stderr)
+        reason = getattr(e, "reason", None)
+        print(f"call failed {label}: {e!r} reason={reason!r} filename={getattr(reason, 'filename', None)!r}", file=sys.stderr)
 
 
 def call_room(room: str, state: str) -> None:
