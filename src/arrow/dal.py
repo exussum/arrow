@@ -8,39 +8,34 @@ from datetime import timedelta
 from arrow import HTTP_TIMEOUT, ORC_BASE_URL
 
 
+def _send(url: str, label: str, data: bytes | None = None) -> None:
+    try:
+        urllib.request.urlopen(url, data=data, timeout=HTTP_TIMEOUT).close()
+    except Exception as e:
+        print(f"call failed {label}: {e}", file=sys.stderr)
+
+
 def call_room(room: str, state: str) -> None:
     _announce_delay(room)
     url = f"{ORC_BASE_URL}/api/room/{urllib.parse.quote(room)}?state={urllib.parse.quote(state)}"
-    try:
-        urllib.request.urlopen(url, timeout=HTTP_TIMEOUT).close()
-    except Exception as e:
-        print(f"call failed {room} {state}: {e}", file=sys.stderr)
+    _send(url, f"{room} {state}")
 
 
 def call_routine(routine: str) -> None:
     _announce_delay(routine)
     url = f"{ORC_BASE_URL}/api/run/{urllib.parse.quote(routine)}"
-    try:
-        urllib.request.urlopen(url, timeout=HTTP_TIMEOUT).close()
-    except Exception as e:
-        print(f"call failed {routine}: {e}", file=sys.stderr)
+    _send(url, routine)
 
 
 def call_presence(name: str) -> None:
     url = f"{ORC_BASE_URL}/api/presence/{urllib.parse.quote(name)}/checkin?ignore-version=1"
-    try:
-        urllib.request.urlopen(url, timeout=HTTP_TIMEOUT).close()
-    except Exception as e:
-        print(f"call failed presence {name}: {e}", file=sys.stderr)
+    _send(url, f"presence {name}")
 
 
 def call_announce(text: str) -> None:
     url = f"{ORC_BASE_URL}/api/announce?ignore-version=1"
     data = urllib.parse.urlencode({"text": text}).encode()
-    try:
-        urllib.request.urlopen(url, data=data, timeout=HTTP_TIMEOUT).close()
-    except Exception as e:
-        print(f"call failed announce {text}: {e}", file=sys.stderr)
+    _send(url, f"announce {text}", data=data)
 
 
 @functools.cache
@@ -60,8 +55,12 @@ def _parse_delay(value: str) -> timedelta:
     return timedelta(hours=int(hours), minutes=int(minutes), seconds=float(seconds))
 
 
+def get_delay(name: str) -> timedelta | None:
+    return _delays().get(name)
+
+
 def _announce_delay(name: str) -> None:
-    if delay := _delays().get(name):
+    if delay := get_delay(name):
         call_announce(f"{name} routine will go off in {_format_delay(delay)}")
 
 

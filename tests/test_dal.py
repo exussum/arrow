@@ -94,6 +94,15 @@ class TestAnnounceDelay:
         assert announced == []
 
 
+class TestGetDelay:
+    def test_returns_delay_when_present(self, monkeypatch):
+        monkeypatch.setattr(dal, "_delays", lambda: {"goodnight": timedelta(minutes=3)})
+        assert dal.get_delay("goodnight") == timedelta(minutes=3)
+
+    def test_returns_none_when_absent(self):
+        assert dal.get_delay("goodnight") is None
+
+
 @pytest.mark.parametrize(
     "seconds,expected",
     [
