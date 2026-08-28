@@ -255,7 +255,7 @@ class DeckManager:
             self._schedule_dim()
 
     def _notify_delay(self, key: int, name: str | None) -> None:
-        if name is not None and dal.get_delay(name) is not None:
+        if name is not None and dal.get_delay(name):
             self._display.show_delayed_notice(key)
             time.sleep(DELAY_NOTICE_SECONDS)
 
