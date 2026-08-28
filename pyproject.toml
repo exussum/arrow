@@ -18,22 +18,23 @@ test = [
     "pytest==9.1.1",
 ]
 lint = [
-    "black==26.5.1",
-    "isort==8.0.1",
     "mypy==2.3.0",
     "pip-audit==2.10.1",
+    "ruff==0.16.4",
     "semgrep==1.171.0",
 ]
 [project.scripts]
 arrow = "arrow.runner:main"
 
-[tool.black]
+[tool.ruff]
 line-length = 140
+target-version = "py311"
 
-[tool.isort]
-profile = "black"
-src_paths = ["src/arrow"]
-known_third_party = ["StreamDeck"]
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+
+[tool.ruff.lint.isort]
+known-third-party = ["StreamDeck"]
 
 [tool.mypy]
 files = ["src/arrow"]
