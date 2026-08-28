@@ -23,14 +23,11 @@ DELAYED_LINES = ("Delayed", "will run", "after wait")
 PROCESSING_TEXT = "processing..."
 PROCESSING_FONT_SIZE = 18
 
-_emoji_font = ImageFont.truetype(EMOJI_FONT_PATH, EMOJI_NATIVE)
-_text_font = ImageFont.truetype(TEXT_FONT_PATH, TEXT_FONT_SIZE)
-_processing_font = ImageFont.truetype(TEXT_FONT_PATH, PROCESSING_FONT_SIZE)
-
 
 def render_emoji(emoji: str, target_size: int) -> Image.Image:
+    font = ImageFont.truetype(EMOJI_FONT_PATH, EMOJI_NATIVE)
     raw = Image.new("RGBA", (EMOJI_NATIVE, EMOJI_NATIVE), (0, 0, 0, 0))
-    ImageDraw.Draw(raw).text((0, 0), emoji, font=_emoji_font, embedded_color=True)
+    ImageDraw.Draw(raw).text((0, 0), emoji, font=font, embedded_color=True)
     return raw.resize((target_size, target_size), Image.Resampling.LANCZOS)
 
 
@@ -126,12 +123,14 @@ def add_label_text(img: Image.Image, text: str, font_size: int = 20) -> None:
 
 
 def _text_frame(text: str, fg: str = "white", bg: str = "black") -> Image.Image:
+    text_font = ImageFont.truetype(TEXT_FONT_PATH, TEXT_FONT_SIZE)
+    processing_font = ImageFont.truetype(TEXT_FONT_PATH, PROCESSING_FONT_SIZE)
     frame = Image.new("RGB", (SIZE, SIZE), bg)
     draw = ImageDraw.Draw(frame)
-    big_top = (SIZE - _text_height(draw, text, _text_font)) // 2 - 10
-    proc_top = SIZE - _text_height(draw, PROCESSING_TEXT, _processing_font) - 6
-    _draw_h_centered(draw, text, _text_font, big_top, fg)
-    _draw_h_centered(draw, PROCESSING_TEXT, _processing_font, proc_top, fg)
+    big_top = (SIZE - _text_height(draw, text, text_font)) // 2 - 10
+    proc_top = SIZE - _text_height(draw, PROCESSING_TEXT, processing_font) - 6
+    _draw_h_centered(draw, text, text_font, big_top, fg)
+    _draw_h_centered(draw, PROCESSING_TEXT, processing_font, proc_top, fg)
     return frame
 
 

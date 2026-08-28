@@ -28,7 +28,7 @@ from arrow import (
     OtherId,
     dal,
 )
-from arrow.img import SIZE, delayed_frame
+from arrow.img import SIZE
 from arrow.models import Dispatch, IconMode
 
 
@@ -47,7 +47,7 @@ class ImageManager:
             labels=cls._build_icon_cache(deck, label=True),
             frames=cls._build_gif_cache(deck, gif_paths),
             blank=cls._build_cache(deck, Image.new("RGB", (SIZE, SIZE), "black")),
-            delayed=cls._build_cache(deck, delayed_frame()),
+            delayed=cls._build_cache(deck, Image.open(ICONS_DIR / "delayed.png")),
         )
 
     @classmethod
