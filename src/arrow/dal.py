@@ -29,12 +29,12 @@ def call_routine(routine: str, name: str) -> None:
 
 
 def call_presence(name: str) -> None:
-    url = f"{ORC_BASE_URL}/api/presence/{urllib.parse.quote(name)}/checkin?ignore-version=1"
+    url = f"{ORC_BASE_URL}/api/presence/{urllib.parse.quote(name)}/checkin"
     _send(url, f"presence {name}")
 
 
 def call_announce(text: str) -> None:
-    url = f"{ORC_BASE_URL}/api/announce?ignore-version=1"
+    url = f"{ORC_BASE_URL}/api/announce"
     data = urllib.parse.urlencode({"text": text}).encode()
     _send(url, f"announce {text}", data=data)
 

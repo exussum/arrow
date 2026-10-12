@@ -71,7 +71,7 @@ class TestCallRoutine:
 class TestCallPresence:
     def test_builds_correct_url(self, received_paths):
         dal.call_presence("someone")
-        assert received_paths == ["/api/presence/someone/checkin?ignore-version=1"]
+        assert received_paths == ["/api/presence/someone/checkin"]
 
     def test_swallows_exceptions(self, unreachable_server, capsys):
         dal.call_presence("someone")
