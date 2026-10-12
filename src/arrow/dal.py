@@ -17,15 +17,15 @@ def _send(url: str, label: str, data: bytes | None = None) -> None:
 
 
 def call_room(room: str, state: str) -> None:
-    _announce_delay(room)
+    _announce_delay(room, room)
     url = f"{ORC_BASE_URL}/api/room/{urllib.parse.quote(room)}?state={urllib.parse.quote(state)}"
     _send(url, f"{room} {state}")
 
 
-def call_routine(routine: str) -> None:
-    _announce_delay(routine)
+def call_routine(routine: str, name: str) -> None:
+    _announce_delay(routine, name)
     url = f"{ORC_BASE_URL}/api/run/{urllib.parse.quote(routine)}"
-    _send(url, routine)
+    _send(url, name)
 
 
 def call_presence(name: str) -> None:
@@ -60,8 +60,8 @@ def get_delay(name: str) -> timedelta | None:
     return _delays().get(name)
 
 
-def _announce_delay(name: str) -> None:
-    if delay := get_delay(name):
+def _announce_delay(routine: str, name: str) -> None:
+    if delay := get_delay(routine):
         call_announce(f"{name} routine will go off in {_format_delay(delay)}")
 
 

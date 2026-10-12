@@ -20,6 +20,7 @@ class Button:
 class Routine:
     slug: str
     display_name: str
+    orc_id: str | None = None
 
 
 @dataclass(frozen=True)

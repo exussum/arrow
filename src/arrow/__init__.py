@@ -69,11 +69,11 @@ ROUTINES: dict[RoutineId, Routine] = {
     RoutineId.movie_night: Routine("movie_night", "Movie Night"),
     RoutineId.nightlights: Routine("nightlights", "Nightlights"),
     RoutineId.everything: Routine("everything", "Everything"),
-    RoutineId.reset: Routine("reset", "Reset"),
+    RoutineId.reset: Routine("reset", "Reset", "ROUTINE_RESET"),
     RoutineId.cat: Routine("cat", "Cat"),
     RoutineId.hush: Routine("hush", "Hush"),
-    RoutineId.wake_up: Routine("wake_up", "Wake Up"),
-    RoutineId.dusk: Routine("dusk", "Dusk"),
+    RoutineId.wake_up: Routine("wake_up", "Wake Up", "ROUTINE_WAKE_UP"),
+    RoutineId.dusk: Routine("dusk", "Dusk", "ROUTINE_DUSK"),
     RoutineId.weekly_review: Routine("weekly_review", "Weekly Review"),
 }
 

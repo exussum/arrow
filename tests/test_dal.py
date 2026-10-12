@@ -60,12 +60,12 @@ class TestCallRoom:
 
 class TestCallRoutine:
     def test_builds_correct_url(self, received_paths):
-        dal.call_routine("goodnight")
+        dal.call_routine("goodnight", "Goodnight")
         assert received_paths == ["/api/run/goodnight"]
 
     def test_swallows_exceptions(self, unreachable_server, capsys):
-        dal.call_routine("goodnight")
-        assert "call failed goodnight" in capsys.readouterr().err
+        dal.call_routine("goodnight", "Goodnight")
+        assert "call failed Goodnight" in capsys.readouterr().err
 
 
 class TestCallPresence:
@@ -83,8 +83,8 @@ class TestAnnounceDelay:
         monkeypatch.setattr(dal, "_delays", lambda: {"goodnight": timedelta(minutes=3)})
         announced = []
         monkeypatch.setattr(dal, "call_announce", announced.append)
-        dal.call_routine("goodnight")
-        assert announced == ["goodnight routine will go off in 3 minutes"]
+        dal.call_routine("goodnight", "Goodnight")
+        assert announced == ["Goodnight routine will go off in 3 minutes"]
         assert received_paths == ["/api/run/goodnight"]
 
     def test_no_announcement_when_no_delay(self, monkeypatch, received_paths):

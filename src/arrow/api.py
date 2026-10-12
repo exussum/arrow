@@ -176,8 +176,8 @@ class DeckManager:
         **{
             pos: Dispatch(
                 ICONS_DIR / "countdowns" / "routines" / f"{r.slug}.gif",
-                partial(dal.call_routine, r.display_name),
-                r.display_name,
+                partial(dal.call_routine, r.orc_id or r.display_name, r.display_name),
+                r.orc_id or r.display_name,
             )
             for pos, r in ROUTINES_BY_POSITION.items()
         },
