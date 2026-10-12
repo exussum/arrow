@@ -64,14 +64,14 @@ BUTTONS: dict[ButtonId, Button] = {
 
 
 ROUTINES: dict[RoutineId, Routine] = {
-    RoutineId.goodnight: Routine("goodnight", "Goodnight"),
-    RoutineId.dim_the_hall: Routine("dim_the_hall", "Dim the Hall"),
-    RoutineId.movie_night: Routine("movie_night", "Movie Night"),
-    RoutineId.nightlights: Routine("nightlights", "Nightlights"),
-    RoutineId.everything: Routine("everything", "Everything"),
+    RoutineId.goodnight: Routine("goodnight", "Goodnight", "AD_HOC_GOODNIGHT"),
+    RoutineId.dim_the_hall: Routine("dim_the_hall", "Dim the Hall", "AD_HOC_DIM_THE_HALL"),
+    RoutineId.movie_night: Routine("movie_night", "Movie Night", "AD_HOC_MOVIE_NIGHT"),
+    RoutineId.nightlights: Routine("nightlights", "Nightlights", "AD_HOC_NIGHTLIGHTS"),
+    RoutineId.everything: Routine("everything", "Everything", "AD_HOC_EVERYTHING"),
     RoutineId.reset: Routine("reset", "Reset", "ROUTINE_RESET"),
-    RoutineId.cat: Routine("cat", "Cat"),
-    RoutineId.hush: Routine("hush", "Hush"),
+    RoutineId.cat: Routine("cat", "Cat", "AD_HOC_CAT"),
+    RoutineId.hush: Routine("hush", "Hush", "AD_HOC_HUSH"),
     RoutineId.wake_up: Routine("wake_up", "Wake Up", "ROUTINE_WAKE_UP"),
     RoutineId.dusk: Routine("dusk", "Dusk", "ROUTINE_DUSK"),
     RoutineId.weekly_review: Routine("weekly_review", "Weekly Review"),
