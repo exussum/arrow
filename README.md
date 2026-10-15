@@ -65,9 +65,11 @@ and uploads it to an internal package registry.
 via `pip` and restarts the supervised `arrow` service.
 
 `scripts/build-and-install.sh` runs both in sequence — upload then ssh deploy.
+Pass `--no-restart` to install the wheel without bouncing the service:
 
 ```sh
 sh scripts/build-and-install.sh
+sh scripts/build-and-install.sh --no-restart
 ```
 
 These scripts hard-code internal hostnames (`registry.int.exussum.example`,
