@@ -5,7 +5,6 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from functools import partial, wraps
-from itertools import chain
 from pathlib import Path
 from typing import Any
 
@@ -14,7 +13,7 @@ from StreamDeck.DeviceManager import DeviceManager
 from StreamDeck.ImageHelpers import PILHelper
 
 from arrow import dal
-from arrow.config import ICONS_DIR, config
+from arrow.config import ICONS_DIR, config, icon_targets
 from arrow.img import SIZE
 from arrow.models import Dispatch, IconMode
 
@@ -39,7 +38,7 @@ class ImageManager:
 
     @classmethod
     def _build_icon_cache(cls, deck: Any, label: bool = False) -> dict[int, Any]:
-        return {key: cls._open_native(deck, path) for key, path in cls._icon_targets(label)}
+        return {key: cls._open_native(deck, path) for key, path in icon_targets(label)}
 
     @classmethod
     def _build_cache(cls, deck: Any, image: Image.Image) -> dict[int, Any]:
@@ -68,17 +67,6 @@ class ImageManager:
                 img.seek(i)
                 frames.append(cls._to_native(deck, img.convert("RGB")))
         return frames
-
-    @staticmethod
-    def _icon_targets(label: bool = False) -> list[tuple[int, Path]]:
-        base = ICONS_DIR / "labels" if label else ICONS_DIR
-        return list(
-            chain(
-                ((key, base / button.action / f"{button.slug}.png") for key, button in config.buttons.items()),
-                ((key, base / "routines" / f"{routine.slug}.png") for key, routine in config.routines.items()),
-                ((key, base / f"{other.slug}.png") for key, other in config.others.items()),
-            )
-        )
 
 
 def with_deck(method: Callable) -> Callable:

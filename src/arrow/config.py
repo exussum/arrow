@@ -1,3 +1,4 @@
+from itertools import chain
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -36,3 +37,14 @@ class Config:
 
 
 config = Config()
+
+
+def icon_targets(label: bool = False) -> list[tuple[int, Path]]:
+    base = ICONS_DIR / "labels" if label else ICONS_DIR
+    return list(
+        chain(
+            ((key, base / button.action / f"{button.slug}.png") for key, button in config.buttons.items()),
+            ((key, base / "routines" / f"{routine.slug}.png") for key, routine in config.routines.items()),
+            ((key, base / f"{other.slug}.png") for key, other in config.others.items()),
+        )
+    )

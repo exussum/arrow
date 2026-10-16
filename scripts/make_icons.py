@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 
+from pathlib import Path
+
 from PIL import Image
 
-from arrow.config import ICONS_DIR, config
+from arrow.config import ICONS_DIR, config, icon_targets
 from arrow.img import (
     BULB_BADGE,
     DELAYED_LINES,
@@ -64,29 +66,33 @@ def compose(art: Art) -> Image.Image:
     return img
 
 
-def targets() -> dict[str, tuple[str, str, list[str]]]:
-    # art key -> (icon path, label path, label lines), paths relative to ICONS_DIR
-    out: dict[str, tuple[str, str, list[str]]] = {}
-    for b in config.buttons.values():
-        key = f"{b.slug}/{b.action}"
-        lines = wrap_words(b.display_name) + [b.action.capitalize()]
-        out[key] = (f"{b.action}/{b.slug}.png", f"labels/{b.action}/{b.slug}.png", lines)
-    for r in config.routines.values():
-        out[r.slug] = (f"routines/{r.slug}.png", f"labels/routines/{r.slug}.png", wrap_words(r.display_name))
-    for o in config.others.values():
-        out[o.slug] = (f"{o.slug}.png", f"labels/{o.slug}.png", wrap_words(o.display_name))
-    return out
+def art_key(key: int) -> str:
+    if (button := config.buttons.get(key)) is not None:
+        return f"{button.slug}/{button.action}"
+    item = config.routines.get(key) or config.others[key]
+    return item.slug
+
+
+def label_lines(key: int) -> list[str]:
+    if (button := config.buttons.get(key)) is not None:
+        return wrap_words(button.display_name) + [button.action.capitalize()]
+    item = config.routines.get(key) or config.others[key]
+    return wrap_words(item.display_name)
+
+
+def save(image: Image.Image, path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    image.save(path)
 
 
 def main():
     config.load()
     calibrate([icon.char for art in config.art.values() for icon in (*art.icons, *filter(None, (art.badge,)))])
 
-    for key, (icon_path, label_path, lines) in targets().items():
-        for path, image in ((icon_path, compose(config.art[key])), (label_path, label_image(lines))):
-            out = ICONS_DIR / path
-            out.parent.mkdir(parents=True, exist_ok=True)
-            image.save(out)
+    for key, path in icon_targets(label=False):
+        save(compose(config.art[art_key(key)]), path)
+    for key, path in icon_targets(label=True):
+        save(label_image(label_lines(key)), path)
 
     multiline_frame(DELAYED_LINES, WAITING_FONT_SIZE).save(ICONS_DIR / "delayed.png")
 
