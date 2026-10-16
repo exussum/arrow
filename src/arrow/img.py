@@ -5,8 +5,6 @@ from PIL import Image, ImageDraw, ImageEnhance, ImageFont, ImageMath
 
 SIZE = 144
 BULB_BADGE = 84
-PUSHPIN = "\U0001f4cc"
-BULB = "\U0001f4a1"
 
 FONTS_DIR = Path(__file__).resolve().parent / "fonts"
 
@@ -57,43 +55,6 @@ def render_emoji(emoji: str, target_size: int) -> Image.Image:
     out = Image.new("RGBA", (target_size, target_size), (0, 0, 0, 0))
     out.alpha_composite(ink, ((target_size - ink.width) // 2, (target_size - ink.height) // 2))
     return out
-
-
-def _paste_emoji(img: Image.Image, emoji: str, target: int, pos: tuple[int, int]) -> None:
-    img.alpha_composite(render_emoji(emoji, target), pos)
-
-
-def emoji_base(emoji: str) -> Image.Image:
-    img = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
-    off = (SIZE - EMOJI_TARGET) // 2
-    _paste_emoji(img, emoji, EMOJI_TARGET, (off, off))
-    return img
-
-
-def _paste_emoji_br(img: Image.Image, badge: Image.Image) -> None:
-    size = badge.width
-    overflow = max(0, size - SIZE)
-    dest = (max(0, SIZE - size), max(0, SIZE - size))
-    img.alpha_composite(badge, dest=dest, source=(overflow, overflow))
-
-
-def add_bulb_on(img: Image.Image) -> None:
-    _paste_emoji_br(img, render_emoji(BULB, BULB_BADGE))
-
-
-def add_bulb_off(img: Image.Image) -> None:
-    _paste_emoji_br(img, desaturate(render_emoji(BULB, BULB_BADGE)))
-
-
-def add_pushpin(img: Image.Image) -> None:
-    _paste_emoji_br(img, render_emoji(PUSHPIN, BULB_BADGE))
-
-
-def diagonal(top_left_emoji: str, bottom_right_emoji: str) -> Image.Image:
-    img = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
-    _paste_emoji(img, top_left_emoji, PAIR_TARGET, (0, 0))
-    _paste_emoji(img, bottom_right_emoji, PAIR_TARGET, (SIZE - PAIR_TARGET, SIZE - PAIR_TARGET))
-    return img
 
 
 def desaturate(img: Image.Image, brightness: float = 0.5) -> Image.Image:

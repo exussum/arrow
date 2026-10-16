@@ -4,26 +4,24 @@ from PIL import Image
 
 from arrow.config import ICONS_DIR, config
 from arrow.img import (
-    BULB,
+    BULB_BADGE,
     DELAYED_LINES,
+    EMOJI_TARGET,
     PAIR_TARGET,
-    PUSHPIN,
     SIZE,
     WAITING_FONT_SIZE,
-    add_bulb_off,
-    add_bulb_on,
     add_label_text,
-    add_pushpin,
     calibrate,
     desaturate,
-    diagonal,
-    emoji_base,
     multiline_frame,
     render_emoji,
     swap_white_to_black,
 )
+from arrow.loader import Art, Icon
 
 LABEL_FONT_SIZE = 26
+
+FILTERS = {"dim": desaturate, "invert": swap_white_to_black}
 
 
 def wrap_words(text: str, max_chars: int = 10) -> list[str]:
@@ -46,106 +44,49 @@ def label_image(lines: list[str], font_size: int = LABEL_FONT_SIZE):
     return multiline_frame(lines, font_size)
 
 
-ROOMS = {
-    "hall": "\U0001f6cb️",
-    "study": "\U0001f5a5️",
-    "garden": "\U0001f37d️",
-}
-
-OTHER_ICONS = {
-    "help": "❓",
-    "presence": "\U0001f64b",  # 🙋
-}
-
-ROUTINE_ICONS = {
-    "goodnight": "\U0001f4a4",  # 💤
-    "movie_night": "\U0001f4fa",  # 📺
-    "nightlights": "\U0001f56f",  # 🕯
-    "everything": "\U0001f4a1",  # 💡
-    "cat": "\U0001f415",  # 🐕
-    "hush": "\U0001f507",  # 🔇
-    "wake_up": "⚛️",  # ⚛️
-    "weekly_review": "\U0001f4c5",  # 📅
-}
-
-DUSK = "\U0001f306"  # 🌆
+def glyph(icon: Icon, size: int) -> Image.Image:
+    img = render_emoji(icon.char, size)
+    return FILTERS[icon.filter](img) if icon.filter else img
 
 
-def all_emoji() -> list[str]:
-    return [*ROOMS.values(), *OTHER_ICONS.values(), *ROUTINE_ICONS.values(), BULB, PUSHPIN, DUSK]
+def compose(art: Art) -> Image.Image:
+    img = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
+    if len(art.icons) == 2:
+        img.alpha_composite(glyph(art.icons[0], PAIR_TARGET), (0, 0))
+        img.alpha_composite(glyph(art.icons[1], PAIR_TARGET), (SIZE - PAIR_TARGET, SIZE - PAIR_TARGET))
+    else:
+        off = (SIZE - EMOJI_TARGET) // 2
+        img.alpha_composite(glyph(art.icons[0], EMOJI_TARGET), (off, off))
+        if art.badge:
+            img.alpha_composite(glyph(art.badge, BULB_BADGE), (SIZE - BULB_BADGE, SIZE - BULB_BADGE))
+    if art.text:
+        add_label_text(img, "\n".join(wrap_words(art.text, max_chars=6)), font_size=40)
+    return img
 
 
-VARIANTS = {
-    "on": add_bulb_on,
-    "off": add_bulb_off,
-    "follow": add_pushpin,
-}
+def targets() -> dict[str, tuple[str, str, list[str]]]:
+    # art key -> (icon path, label path, label lines), paths relative to ICONS_DIR
+    out: dict[str, tuple[str, str, list[str]]] = {}
+    for b in config.buttons.values():
+        key = f"{b.slug}/{b.action}"
+        lines = wrap_words(b.display_name) + [b.action.capitalize()]
+        out[key] = (f"{b.action}/{b.slug}.png", f"labels/{b.action}/{b.slug}.png", lines)
+    for r in config.routines.values():
+        out[r.slug] = (f"routines/{r.slug}.png", f"labels/routines/{r.slug}.png", wrap_words(r.display_name))
+    for o in config.others.values():
+        out[o.slug] = (f"{o.slug}.png", f"labels/{o.slug}.png", wrap_words(o.display_name))
+    return out
 
 
 def main():
     config.load()
+    calibrate([icon.char for art in config.art.values() for icon in (*art.icons, *filter(None, (art.badge,)))])
 
-    calibrate(all_emoji())
-
-    for variant, decorate in VARIANTS.items():
-        out = ICONS_DIR / variant
-        out.mkdir(parents=True, exist_ok=True)
-        for name, emoji in ROOMS.items():
-            img = emoji_base(emoji)
-            decorate(img)
-            img.save(out / f"{name}.png")
-
-    routines_out = ICONS_DIR / "routines"
-    routines_out.mkdir(parents=True, exist_ok=True)
-    for name, emoji in ROUTINE_ICONS.items():
-        if name == "everything":
-            continue
-        img = emoji_base(emoji)
-        img.save(routines_out / f"{name}.png")
-
-    img = emoji_base("\U0001f4a1")
-    add_label_text(img, "All\nlights", font_size=40)
-    img.save(routines_out / "everything.png")
-
-    partial = diagonal("\U0001f4fa", "\U0001f4a1")  # 📺 + 💡
-    partial.save(routines_out / "dim_the_hall.png")
-
-    reset = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
-    off_bulb = desaturate(render_emoji("\U0001f4a1", PAIR_TARGET))
-    reset.alpha_composite(off_bulb, (0, 0))
-    reset.alpha_composite(
-        render_emoji("\U0001f507", PAIR_TARGET),  # 🔇
-        (SIZE - PAIR_TARGET, SIZE - PAIR_TARGET),
-    )
-    reset.save(routines_out / "reset.png")
-
-    dusk = swap_white_to_black(emoji_base(DUSK))
-    dusk.save(routines_out / "dusk.png")
-
-    labels_root = ICONS_DIR / "labels"
-    seen_buttons: set[tuple[str, str]] = set()
-    for button in config.buttons.values():
-        key = (button.slug, button.action)
-        if key in seen_buttons:
-            continue
-        seen_buttons.add(key)
-        label_dir = labels_root / button.action
-        label_dir.mkdir(parents=True, exist_ok=True)
-        lines = wrap_words(button.display_name) + [button.action.capitalize()]
-        label_image(lines).save(label_dir / f"{button.slug}.png")
-
-    routine_labels = labels_root / "routines"
-    routine_labels.mkdir(parents=True, exist_ok=True)
-    seen_routines: set[str] = set()
-    for routine in config.routines.values():
-        if routine.slug in seen_routines:
-            continue
-        seen_routines.add(routine.slug)
-        label_image(wrap_words(routine.display_name)).save(routine_labels / f"{routine.slug}.png")
-
-    for other in config.others.values():
-        emoji_base(OTHER_ICONS[other.slug]).save(ICONS_DIR / f"{other.slug}.png")
-        label_image(wrap_words(other.display_name)).save(labels_root / f"{other.slug}.png")
+    for key, (icon_path, label_path, lines) in targets().items():
+        for path, image in ((icon_path, compose(config.art[key])), (label_path, label_image(lines))):
+            out = ICONS_DIR / path
+            out.parent.mkdir(parents=True, exist_ok=True)
+            image.save(out)
 
     multiline_frame(DELAYED_LINES, WAITING_FONT_SIZE).save(ICONS_DIR / "delayed.png")
 
