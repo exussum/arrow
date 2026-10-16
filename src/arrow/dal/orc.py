@@ -9,29 +9,6 @@ import requests
 from arrow.config import config
 
 
-def _url(path: str) -> str:
-    return f"{config.settings.orc_base_url}{path}"
-
-
-def _send(url: str, label: str, data: dict[str, str] | None = None) -> None:
-    try:
-        timeout = config.settings.http_timeout
-        response = requests.post(url, data=data, timeout=timeout) if data else requests.get(url, timeout=timeout)
-        response.raise_for_status()
-    except Exception as e:
-        print(f"call failed {label}: {e!r}", file=sys.stderr)
-
-
-def _fetch(path: str, label: str) -> Any | None:
-    try:
-        response = requests.get(_url(path), timeout=config.settings.http_timeout)
-        response.raise_for_status()
-        return response.json()
-    except Exception as e:
-        print(f"fetch failed {label}: {e}", file=sys.stderr)
-        return None
-
-
 def call_room(room: str, state: str) -> None:
     _announce_delay(room, room)
     _send(_url(f"/api/room/{quote(room)}?state={quote(state)}"), f"{room} {state}")
@@ -59,6 +36,33 @@ def fetch_durations() -> dict[str, int]:
     return {name: int(sample["avg"]) for name, sample in data.items()}
 
 
+def get_delay(name: str) -> timedelta | None:
+    return _delays().get(name)
+
+
+def _url(path: str) -> str:
+    return f"{config.settings.orc_base_url}{path}"
+
+
+def _send(url: str, label: str, data: dict[str, str] | None = None) -> None:
+    try:
+        timeout = config.settings.http_timeout
+        response = requests.post(url, data=data, timeout=timeout) if data else requests.get(url, timeout=timeout)
+        response.raise_for_status()
+    except Exception as e:
+        print(f"call failed {label}: {e!r}", file=sys.stderr)
+
+
+def _fetch(path: str, label: str) -> Any | None:
+    try:
+        response = requests.get(_url(path), timeout=config.settings.http_timeout)
+        response.raise_for_status()
+        return response.json()
+    except Exception as e:
+        print(f"fetch failed {label}: {e}", file=sys.stderr)
+        return None
+
+
 @functools.cache
 def _delays() -> dict[str, timedelta]:
     data = _fetch("/api/durations", "durations") or {}
@@ -68,10 +72,6 @@ def _delays() -> dict[str, timedelta]:
 def _parse_delay(value: str) -> timedelta:
     hours, minutes, seconds = value.split(":")
     return timedelta(hours=int(hours), minutes=int(minutes), seconds=float(seconds))
-
-
-def get_delay(name: str) -> timedelta | None:
-    return _delays().get(name)
 
 
 def _announce_delay(routine: str, name: str) -> None:

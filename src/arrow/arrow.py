@@ -4,6 +4,15 @@ from arrow.config import ICONS_DIR, config, countdown_targets, icon_targets
 from arrow.dal import orc
 
 
+def check(argv: list[str]) -> int:
+    config.load(argv[0] if argv else None)
+    problems = missing_files() + against_orc()
+    for problem in problems:
+        print(problem, file=sys.stderr)
+    print(f"{len(config.buttons) + len(config.routines) + len(config.others)} buttons, {len(problems)} problems")
+    return 1 if problems else 0
+
+
 def missing_files() -> list[str]:
     paths = [path for _, path in icon_targets(label=False) + icon_targets(label=True) + countdown_targets()]
     paths.append(ICONS_DIR / "delayed.png")
@@ -26,12 +35,3 @@ def against_orc() -> list[str]:
     if config.settings.presence_name not in actions["people"]:
         problems.append(f"presence_name {config.settings.presence_name!r} is not a person in orc")
     return problems
-
-
-def check(argv: list[str]) -> int:
-    config.load(argv[0] if argv else None)
-    problems = missing_files() + against_orc()
-    for problem in problems:
-        print(problem, file=sys.stderr)
-    print(f"{len(config.buttons) + len(config.routines) + len(config.others)} buttons, {len(problems)} problems")
-    return 1 if problems else 0

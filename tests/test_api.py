@@ -90,14 +90,14 @@ class TestOnKeyChange:
     def test_dispatched_key_blanks_and_restores(self, make_manager):
         manager, deck = make_manager(brightness=config.settings.active_brightness)
         calls = []
-        manager._DISPATCH = {5: Dispatch(gif=GIF, action=lambda: calls.append(5))}
+        manager._dispatch = {5: Dispatch(gif=GIF, action=lambda: calls.append(5))}
         manager.on_key_change(5, pressed=True)
         assert uploaded(deck) == [BLANK] * len(KEYS) + [FRAME] + [ICON] * len(KEYS)
         assert calls == [5]
 
     def test_unmapped_key_prints_to_stderr(self, make_manager, capsys):
         manager, deck = make_manager(brightness=config.settings.active_brightness)
-        manager._DISPATCH = {}
+        manager._dispatch = {}
         manager.on_key_change(3, pressed=True)
         assert "3" in capsys.readouterr().err
 

@@ -14,15 +14,6 @@ from arrow.config import ICONS_DIR, icon_targets
 from arrow.models import IconMode
 
 
-def open_deck() -> Any:
-    decks = DeviceManager().enumerate()
-    if not decks:
-        raise RuntimeError("no StreamDeck found")
-    deck = decks[0]
-    deck.open()
-    return deck
-
-
 @dataclass
 class ImageManager:
     icons: dict[int, Any]
@@ -136,3 +127,12 @@ class DisplayManager:
             self._set_key_image(key, native)
             if done.wait(timeout=None if i == last else 1.0):
                 return
+
+
+def open_deck() -> Any:
+    decks = DeviceManager().enumerate()
+    if not decks:
+        raise RuntimeError("no StreamDeck found")
+    deck = decks[0]
+    deck.open()
+    return deck
