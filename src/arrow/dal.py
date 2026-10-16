@@ -5,12 +5,12 @@ import urllib.parse
 import urllib.request
 from datetime import timedelta
 
-from arrow import HTTP_TIMEOUT, ORC_BASE_URL
+from arrow.config import config
 
 
 def _send(url: str, label: str, data: bytes | None = None) -> None:
     try:
-        urllib.request.urlopen(url, data=data, timeout=HTTP_TIMEOUT).close()
+        urllib.request.urlopen(url, data=data, timeout=config.settings.http_timeout).close()
     except Exception as e:
         reason = getattr(e, "reason", None)
         print(f"call failed {label}: {e!r} reason={reason!r} filename={getattr(reason, 'filename', None)!r}", file=sys.stderr)
@@ -18,32 +18,32 @@ def _send(url: str, label: str, data: bytes | None = None) -> None:
 
 def call_room(room: str, state: str) -> None:
     _announce_delay(room, room)
-    url = f"{ORC_BASE_URL}/api/room/{urllib.parse.quote(room)}?state={urllib.parse.quote(state)}"
+    url = f"{config.settings.orc_base_url}/api/room/{urllib.parse.quote(room)}?state={urllib.parse.quote(state)}"
     _send(url, f"{room} {state}")
 
 
 def call_routine(routine: str, name: str) -> None:
     _announce_delay(routine, name)
-    url = f"{ORC_BASE_URL}/api/run/{urllib.parse.quote(routine)}"
+    url = f"{config.settings.orc_base_url}/api/run/{urllib.parse.quote(routine)}"
     _send(url, name)
 
 
 def call_presence(name: str) -> None:
-    url = f"{ORC_BASE_URL}/api/presence/{urllib.parse.quote(name)}/checkin"
+    url = f"{config.settings.orc_base_url}/api/presence/{urllib.parse.quote(name)}/checkin"
     _send(url, f"presence {name}")
 
 
 def call_announce(text: str) -> None:
-    url = f"{ORC_BASE_URL}/api/announce"
+    url = f"{config.settings.orc_base_url}/api/announce"
     data = urllib.parse.urlencode({"text": text}).encode()
     _send(url, f"announce {text}", data=data)
 
 
 @functools.cache
 def _delays() -> dict[str, timedelta]:
-    url = f"{ORC_BASE_URL}/api/durations"
+    url = f"{config.settings.orc_base_url}/api/durations"
     try:
-        with urllib.request.urlopen(url, timeout=HTTP_TIMEOUT) as r:
+        with urllib.request.urlopen(url, timeout=config.settings.http_timeout) as r:
             data = json.load(r)
     except Exception as e:
         print(f"fetch failed durations: {e}", file=sys.stderr)

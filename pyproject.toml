@@ -7,11 +7,12 @@ requires = [
 [project]
 dependencies = [
     "Pillow==12.3.0",
+    "command-cfg==1.1.0",
     "streamdeck==0.9.8",
 ]
 name = "arrow"
 version = "0.0.1"
-requires-python = ">=3.11"
+requires-python = ">=3.14"
 
 [project.optional-dependencies]
 test = [
@@ -26,9 +27,12 @@ lint = [
 [project.scripts]
 arrow = "arrow.runner:main"
 
+[tool.uv.sources]
+command-cfg = { git = "https://github.com/exussum/command-cfg", tag = "v1.1.0" }
+
 [tool.ruff]
 line-length = 140
-target-version = "py311"
+target-version = "py314"
 
 [tool.ruff.lint]
 select = ["E", "F", "I"]
@@ -56,4 +60,5 @@ include = [
     "src/arrow/icons/**/*.gif",
     "src/arrow/fonts/*.ttf",
     "src/arrow/fonts/LICENSE-*.txt",
+    "src/arrow/config.arrow",
 ]

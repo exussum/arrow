@@ -4,12 +4,13 @@ from pathlib import Path
 
 import pytest
 
-from arrow import ACTIVE_BRIGHTNESS, DELAY_NOTICE_SECONDS, DIM_BRIGHTNESS, OtherId, api, dal
+from arrow import api, dal
 from arrow.api import DeckManager, DisplayManager, ImageManager
+from arrow.config import config
 from arrow.models import Dispatch
 
 GIF = Path("/fake/countdown.gif")
-KEYS = (0, OtherId.help.value)
+KEYS = (0, config.key_of("help"))
 ICON = b"icon"
 LABEL = b"label"
 BLANK = b"blank"
@@ -51,7 +52,7 @@ def make_display_manager():
 def make_manager():
     managers = []
 
-    def _make(brightness=DIM_BRIGHTNESS):
+    def _make(brightness=config.settings.dim_brightness):
         display, deck = make_display_manager()
         manager = DeckManager(brightness=brightness, display=display)
         managers.append(manager)
@@ -74,18 +75,18 @@ class TestOnKeyChange:
         assert deck.brightness_calls == []
 
     def test_dim_wake_on_any_key(self, make_manager):
-        manager, deck = make_manager(brightness=DIM_BRIGHTNESS)
+        manager, deck = make_manager(brightness=config.settings.dim_brightness)
         manager.on_key_change(3, pressed=True)
-        assert manager._brightness == ACTIVE_BRIGHTNESS
-        assert deck.brightness_calls == [ACTIVE_BRIGHTNESS]
+        assert manager._brightness == config.settings.active_brightness
+        assert deck.brightness_calls == [config.settings.active_brightness]
 
     def test_help_key_toggles_labels(self, make_manager):
-        manager, deck = make_manager(brightness=ACTIVE_BRIGHTNESS)
-        manager.on_key_change(OtherId.help.value, pressed=True)
+        manager, deck = make_manager(brightness=config.settings.active_brightness)
+        manager.on_key_change(config.key_of("help"), pressed=True)
         assert uploaded(deck) == [LABEL] * len(KEYS)
 
     def test_dispatched_key_blanks_and_restores(self, make_manager):
-        manager, deck = make_manager(brightness=ACTIVE_BRIGHTNESS)
+        manager, deck = make_manager(brightness=config.settings.active_brightness)
         calls = []
         manager._DISPATCH = {5: Dispatch(gif=GIF, action=lambda: calls.append(5))}
         manager.on_key_change(5, pressed=True)
@@ -93,7 +94,7 @@ class TestOnKeyChange:
         assert calls == [5]
 
     def test_unmapped_key_prints_to_stderr(self, make_manager, capsys):
-        manager, deck = make_manager(brightness=ACTIVE_BRIGHTNESS)
+        manager, deck = make_manager(brightness=config.settings.active_brightness)
         manager._DISPATCH = {}
         manager.on_key_change(3, pressed=True)
         assert "3" in capsys.readouterr().err
@@ -101,17 +102,17 @@ class TestOnKeyChange:
 
 class TestDim:
     def test_apply_dim_dims_when_active(self, make_manager):
-        manager, deck = make_manager(brightness=ACTIVE_BRIGHTNESS)
+        manager, deck = make_manager(brightness=config.settings.active_brightness)
         manager._dim_active = True
         manager._apply_dim()
-        assert manager._brightness == DIM_BRIGHTNESS
-        assert deck.brightness_calls == [DIM_BRIGHTNESS]
+        assert manager._brightness == config.settings.dim_brightness
+        assert deck.brightness_calls == [config.settings.dim_brightness]
 
     def test_apply_dim_skips_when_cancelled(self, make_manager):
-        manager, deck = make_manager(brightness=ACTIVE_BRIGHTNESS)
+        manager, deck = make_manager(brightness=config.settings.active_brightness)
         manager._dim_active = False
         manager._apply_dim()
-        assert manager._brightness == ACTIVE_BRIGHTNESS
+        assert manager._brightness == config.settings.active_brightness
         assert deck.brightness_calls == []
 
     def test_cancel_dim_stops_timer(self, make_manager):
@@ -129,14 +130,14 @@ class TestDim:
 
 class TestRun:
     def test_calls_action_and_restores_icons(self, make_manager):
-        manager, deck = make_manager(brightness=ACTIVE_BRIGHTNESS)
+        manager, deck = make_manager(brightness=config.settings.active_brightness)
         calls = []
         manager._run(0, GIF, lambda: calls.append(0))
         assert calls == [0]
         assert uploaded(deck)[-len(KEYS) :] == [ICON] * len(KEYS)
 
     def test_restores_icons_even_on_action_exception(self, make_manager):
-        manager, deck = make_manager(brightness=ACTIVE_BRIGHTNESS)
+        manager, deck = make_manager(brightness=config.settings.active_brightness)
 
         def action():
             raise RuntimeError("boom")
@@ -146,24 +147,24 @@ class TestRun:
         assert uploaded(deck)[-len(KEYS) :] == [ICON] * len(KEYS)
 
     def test_shows_delayed_notice_when_delay_present(self, make_manager, monkeypatch):
-        manager, deck = make_manager(brightness=ACTIVE_BRIGHTNESS)
+        manager, deck = make_manager(brightness=config.settings.active_brightness)
         monkeypatch.setattr(dal, "get_delay", lambda name: timedelta(minutes=3))
         sleeps = []
         monkeypatch.setattr(api.time, "sleep", sleeps.append)
         calls = []
         manager._run(0, GIF, lambda: calls.append(0), name="Goodnight")
         assert deck.key_images[0] == (0, DELAYED)
-        assert sleeps == [DELAY_NOTICE_SECONDS]
+        assert sleeps == [config.settings.delay_notice_seconds]
         assert calls == [0]
 
     def test_no_delayed_notice_when_no_delay(self, make_manager, monkeypatch):
-        manager, deck = make_manager(brightness=ACTIVE_BRIGHTNESS)
+        manager, deck = make_manager(brightness=config.settings.active_brightness)
         monkeypatch.setattr(dal, "get_delay", lambda name: None)
         manager._run(0, GIF, lambda: None, name="Goodnight")
         assert DELAYED not in uploaded(deck)
 
     def test_no_delayed_notice_when_name_is_none(self, make_manager, monkeypatch):
-        manager, deck = make_manager(brightness=ACTIVE_BRIGHTNESS)
+        manager, deck = make_manager(brightness=config.settings.active_brightness)
         checked = []
         monkeypatch.setattr(dal, "get_delay", lambda name: checked.append(name) or timedelta(minutes=1))
         manager._run(0, GIF, lambda: None)

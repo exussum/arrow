@@ -2,7 +2,7 @@
 
 from PIL import Image
 
-from arrow import BUTTONS, ICONS_DIR, OTHERS, ROUTINES
+from arrow.config import ICONS_DIR, config
 from arrow.img import (
     BULB,
     DELAYED_LINES,
@@ -83,6 +83,8 @@ VARIANTS = {
 
 
 def main():
+    config.load()
+
     calibrate(all_emoji())
 
     for variant, decorate in VARIANTS.items():
@@ -122,7 +124,7 @@ def main():
 
     labels_root = ICONS_DIR / "labels"
     seen_buttons: set[tuple[str, str]] = set()
-    for button in BUTTONS.values():
+    for button in config.buttons.values():
         key = (button.slug, button.action)
         if key in seen_buttons:
             continue
@@ -135,13 +137,13 @@ def main():
     routine_labels = labels_root / "routines"
     routine_labels.mkdir(parents=True, exist_ok=True)
     seen_routines: set[str] = set()
-    for routine in ROUTINES.values():
+    for routine in config.routines.values():
         if routine.slug in seen_routines:
             continue
         seen_routines.add(routine.slug)
         label_image(wrap_words(routine.display_name)).save(routine_labels / f"{routine.slug}.png")
 
-    for other in OTHERS.values():
+    for other in config.others.values():
         emoji_base(OTHER_ICONS[other.slug]).save(ICONS_DIR / f"{other.slug}.png")
         label_image(wrap_words(other.display_name)).save(labels_root / f"{other.slug}.png")
 

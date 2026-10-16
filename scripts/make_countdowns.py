@@ -4,7 +4,7 @@ import json
 import sys
 import urllib.request
 
-from arrow import BUTTONS, HTTP_TIMEOUT, ICONS_DIR, ORC_BASE_URL, ROUTINES
+from arrow.config import ICONS_DIR, config
 from arrow.img import save_countdown
 
 OUT_DIR = ICONS_DIR / "countdowns"
@@ -12,15 +12,17 @@ PRESENCE_DURATION = 1
 
 
 def fetch_durations() -> dict[str, int]:
-    with urllib.request.urlopen(f"{ORC_BASE_URL}/api/durations", timeout=HTTP_TIMEOUT) as r:
+    with urllib.request.urlopen(f"{config.settings.orc_base_url}/api/durations", timeout=config.settings.http_timeout) as r:
         return {name: int(sample["avg"]) for name, sample in json.load(r).items()}
 
 
 def main() -> int:
+    config.load()
+
     durations = fetch_durations()
     missing: list[str] = []
 
-    for button in BUTTONS.values():
+    for button in config.buttons.values():
         secs = durations.get(button.display_name)
         if secs is None:
             missing.append(f"button: {button.display_name}")
@@ -31,7 +33,7 @@ def main() -> int:
 
     routines_out = OUT_DIR / "routines"
     routines_out.mkdir(parents=True, exist_ok=True)
-    for routine in ROUTINES.values():
+    for routine in config.routines.values():
         secs = durations.get(routine.display_name)
         if secs is None:
             missing.append(f"routine: {routine.display_name}")

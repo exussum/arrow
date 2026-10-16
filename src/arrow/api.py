@@ -13,21 +13,8 @@ from PIL import Image
 from StreamDeck.DeviceManager import DeviceManager
 from StreamDeck.ImageHelpers import PILHelper
 
-from arrow import (
-    ACTIVE_BRIGHTNESS,
-    BUTTONS,
-    BUTTONS_BY_POSITION,
-    DELAY_NOTICE_SECONDS,
-    DIM_BRIGHTNESS,
-    DIM_DELAY_SECONDS,
-    ICONS_DIR,
-    OTHERS,
-    PRESENCE_NAME,
-    ROUTINES,
-    ROUTINES_BY_POSITION,
-    OtherId,
-    dal,
-)
+from arrow import dal
+from arrow.config import ICONS_DIR, config
 from arrow.img import SIZE
 from arrow.models import Dispatch, IconMode
 
@@ -85,14 +72,13 @@ class ImageManager:
     @staticmethod
     def _icon_targets(label: bool = False) -> list[tuple[int, Path]]:
         base = ICONS_DIR / "labels" if label else ICONS_DIR
-        return [
-            (id_value, path)
-            for id_value, path in chain(
-                ((bid.value, base / button.action / f"{button.slug}.png") for bid, button in BUTTONS.items()),
-                ((rid.value, base / "routines" / f"{routine.slug}.png") for rid, routine in ROUTINES.items()),
-                ((oid.value, base / f"{other.slug}.png") for oid, other in OTHERS.items()),
+        return list(
+            chain(
+                ((key, base / button.action / f"{button.slug}.png") for key, button in config.buttons.items()),
+                ((key, base / "routines" / f"{routine.slug}.png") for key, routine in config.routines.items()),
+                ((key, base / f"{other.slug}.png") for key, other in config.others.items()),
             )
-        ]
+        )
 
 
 def with_deck(method: Callable) -> Callable:
@@ -159,33 +145,36 @@ class DisplayManager:
                 return
 
 
-class DeckManager:
-    _DISPATCH = {
-        OtherId.presence.value: Dispatch(
-            ICONS_DIR / "countdowns" / "presence.gif",
-            partial(dal.call_presence, PRESENCE_NAME),
-        ),
-        **{
-            pos: Dispatch(
-                ICONS_DIR / "countdowns" / b.action / f"{b.slug}.gif",
-                partial(dal.call_room, b.display_name, b.action),
-                b.display_name,
-            )
-            for pos, b in BUTTONS_BY_POSITION.items()
-        },
-        **{
-            pos: Dispatch(
-                ICONS_DIR / "countdowns" / "routines" / f"{r.slug}.gif",
-                partial(dal.call_routine, r.orc_id or r.display_name, r.display_name),
-                r.orc_id or r.display_name,
-            )
-            for pos, r in ROUTINES_BY_POSITION.items()
-        },
+def build_dispatch() -> dict[int, Dispatch]:
+    presence = {
+        key: Dispatch(ICONS_DIR / "countdowns" / "presence.gif", partial(dal.call_presence, config.settings.presence_name))
+        for key, other in config.others.items()
+        if other.slug == "presence"
     }
+    rooms = {
+        key: Dispatch(
+            ICONS_DIR / "countdowns" / b.action / f"{b.slug}.gif",
+            partial(dal.call_room, b.display_name, b.action),
+            b.display_name,
+        )
+        for key, b in config.buttons.items()
+    }
+    routines = {
+        key: Dispatch(
+            ICONS_DIR / "countdowns" / "routines" / f"{r.slug}.gif",
+            partial(dal.call_routine, r.orc_id or r.display_name, r.display_name),
+            r.orc_id or r.display_name,
+        )
+        for key, r in config.routines.items()
+    }
+    return presence | rooms | routines
 
+
+class DeckManager:
     def __init__(self, brightness: int, display: DisplayManager) -> None:
         self._brightness = brightness
         self._display = display
+        self._DISPATCH = build_dispatch()
         self._dim_timer: threading.Timer | None = None
         self._dim_lock = threading.Lock()
         self._dim_active = False
@@ -198,7 +187,7 @@ class DeckManager:
         deck = decks[0]
         deck.open()
         try:
-            gif_paths = [entry.gif for entry in cls._DISPATCH.values()]
+            gif_paths = [entry.gif for entry in build_dispatch().values()]
             cache = ImageManager.build(deck, gif_paths)
         except Exception:
             deck.close()
@@ -208,7 +197,7 @@ class DeckManager:
     def initialize(self) -> None:
         self._display.deck.reset()
         self._display.upload_icons(IconMode.ICONS)
-        self.set_brightness(DIM_BRIGHTNESS)
+        self.set_brightness(config.settings.dim_brightness)
         self._display.deck.set_key_callback(lambda d, k, p: self.on_key_change(k, p))
 
     def shutdown(self) -> None:
@@ -218,16 +207,16 @@ class DeckManager:
     def set_brightness(self, level: int) -> None:
         self._display.set_brightness(level)
         self._brightness = level
-        if level == DIM_BRIGHTNESS:
+        if level == config.settings.dim_brightness:
             self._display.on_dim()
 
     def on_key_change(self, key: int, pressed: bool) -> None:
         if not pressed:
             return
-        elif self._brightness == DIM_BRIGHTNESS:
-            self.set_brightness(ACTIVE_BRIGHTNESS)
+        elif self._brightness == config.settings.dim_brightness:
+            self.set_brightness(config.settings.active_brightness)
             self._schedule_dim()
-        elif key == OtherId.help.value:
+        elif key == config.key_of("help"):
             self._display.toggle_labels()
             self._schedule_dim()
         elif (entry := self._DISPATCH.get(key)) is not None:
@@ -257,13 +246,13 @@ class DeckManager:
     def _notify_delay(self, key: int, name: str | None) -> None:
         if name is not None and dal.get_delay(name):
             self._display.show_delayed_notice(key)
-            time.sleep(DELAY_NOTICE_SECONDS)
+            time.sleep(config.settings.delay_notice_seconds)
 
     def _schedule_dim(self) -> None:
         self._cancel_dim()
         with self._dim_lock:
             self._dim_active = True
-        t = threading.Timer(DIM_DELAY_SECONDS, self._apply_dim)
+        t = threading.Timer(config.settings.dim_delay_seconds, self._apply_dim)
         t.daemon = True
         t.start()
         self._dim_timer = t
@@ -272,7 +261,7 @@ class DeckManager:
         with self._dim_lock:
             if self._dim_active:
                 self._dim_active = False
-                self.set_brightness(DIM_BRIGHTNESS)
+                self.set_brightness(config.settings.dim_brightness)
 
     def _cancel_dim(self) -> None:
         with self._dim_lock:

@@ -1,11 +1,13 @@
 import socket
 import threading
+from dataclasses import replace
 from datetime import timedelta
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import pytest
 
 from arrow import dal
+from arrow.config import config
 
 
 @pytest.fixture(autouse=True)
@@ -29,7 +31,7 @@ def received_paths(monkeypatch):
     server = HTTPServer(("127.0.0.1", 0), Handler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
-    monkeypatch.setattr(dal, "ORC_BASE_URL", f"http://127.0.0.1:{server.server_port}")
+    monkeypatch.setattr(config, "settings", replace(config.settings, orc_base_url=f"http://127.0.0.1:{server.server_port}"))
     yield paths
     server.shutdown()
     server.server_close()
@@ -41,7 +43,7 @@ def unreachable_server(monkeypatch):
     with socket.socket() as sock:
         sock.bind(("127.0.0.1", 0))
         port = sock.getsockname()[1]
-    monkeypatch.setattr(dal, "ORC_BASE_URL", f"http://127.0.0.1:{port}")
+    monkeypatch.setattr(config, "settings", replace(config.settings, orc_base_url=f"http://127.0.0.1:{port}"))
 
 
 class TestCallRoom:

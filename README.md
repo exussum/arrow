@@ -48,7 +48,7 @@ URL (`ORC_BASE_URL`) is configured there too.
 
 ## Install / run
 
-Requires Python ≥ 3.11 and a Stream Deck attached via USB. The `streamdeck`
+Requires Python ≥ 3.14 and a Stream Deck attached via USB. The `streamdeck`
 library needs hidapi available on the host.
 
 ```sh
