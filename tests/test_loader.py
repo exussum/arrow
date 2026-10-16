@@ -21,6 +21,7 @@ def parsed(name: str = "base"):
         ("non_room_with_state", "takes no action"),
         ("unknown_icon_filter", "unknown icon filter"),
         ("unknown_icon_name", "unknown icon name"),
+        ("missing_badge", "missing off, follow"),
     ),
 )
 def test_rejects(fixture, expected):

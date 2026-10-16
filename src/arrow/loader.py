@@ -15,6 +15,8 @@ ACTIONS = ("on", "off", "follow")
 FILTERS = ("dim", "invert")
 LAYOUTS = ("single", "pair", "caption", "marked")
 
+AD_HOC_PREFIX = "AD_HOC_"
+
 GRAMMAR = """
 setting <key> <value>
 badge <action> <icon>
@@ -141,6 +143,8 @@ def parse(text: str) -> Parsed:
 
     badges = {row.action: _icon(row.icon) for row in objects["badge"]}
     rooms = {row.slug: row for row in objects["room"]}
+    if rooms and (undeclared := [state for state in ACTIONS if state not in badges]):
+        raise ConfigError(f"rooms need a badge line for each state; missing {', '.join(undeclared)}")
     routines = {row.slug: row for row in objects["routine"]}
     others = {row.slug: row for row in objects["other"]}
 
@@ -169,21 +173,7 @@ def _icon(spec: str) -> Icon:
         raise ConfigError(f"unknown icon name {name!r}") from None
 
 
-def _routine_art(routine: RoutineRow) -> Art:
-    icon = _icon(routine.icon)
-    match routine.layout:
-        case "pair":
-            return Pair(icon, _icon(routine.icon2 or ""))
-        case "caption":
-            return Caption(icon, routine.text or "")
-        case "marked":
-            return Marked(icon, _icon(routine.badge or ""))
-        case _:
-            return Single(icon)
-
-
 def _as_int(value: str, _objects: object = None) -> int:
-    # scalar() calls a type with (value, objects); builtins.int reads the second as a base
     return int(value)
 
 
@@ -195,10 +185,20 @@ def _art(
 ) -> dict[str, Art]:
     art: dict[str, Art] = {}
     for slug, room in rooms.items():
+        icon = _icon(room.icon)
         for state in ACTIONS:
-            art[f"{slug}/{state}"] = Marked(_icon(room.icon), badges[state])
+            art[f"{slug}/{state}"] = Marked(icon, badges[state])
     for slug, routine in routines.items():
-        art[slug] = _routine_art(routine)
+        icon = _icon(routine.icon)
+        match routine.layout:
+            case "pair":
+                art[slug] = Pair(icon, _icon(routine.icon2 or ""))
+            case "caption":
+                art[slug] = Caption(icon, routine.text or "")
+            case "marked":
+                art[slug] = Marked(icon, _icon(routine.badge or ""))
+            case _:
+                art[slug] = Single(icon)
     for slug, other in others.items():
         art[slug] = Single(_icon(other.icon))
     return art
@@ -213,20 +213,23 @@ def _keys(
     buttons: dict[int, Button] = {}
     routine_keys: dict[int, Routine] = {}
     other_keys: dict[int, Other] = {}
+    claimed: set[int] = set()
     for row in rows:
-        if row.key in buttons or row.key in routine_keys or row.key in other_keys:
+        if row.key in claimed:
             raise ConfigError(f"key {row.key} is claimed twice")
-        if row.slug in rooms:
-            if row.action not in ACTIONS:
-                raise ConfigError(f"room button {row.slug!r} needs one of {ACTIONS}, got {row.action!r}")
-            buttons[row.key] = Button(row.slug, rooms[row.slug].name, row.action)
-        elif row.action:
+        claimed.add(row.key)
+
+        room = rooms.get(row.slug)
+        if not room and row.action:
             raise ConfigError(f"{row.slug!r} is not a room, so it takes no action (got {row.action!r})")
-        elif row.slug in routines:
-            routine = routines[row.slug]
-            routine_keys[row.key] = Routine(row.slug, routine.name, routine.orc_id or f"AD_HOC_{row.slug.upper()}")
-        elif row.slug in others:
-            other_keys[row.key] = Other(row.slug, others[row.slug].name)
+        elif room:
+            if row.action is None or row.action not in ACTIONS:
+                raise ConfigError(f"room button {row.slug!r} needs one of {ACTIONS}, got {row.action!r}")
+            buttons[row.key] = Button(row.slug, room.name, row.action)
+        elif routine := routines.get(row.slug):
+            routine_keys[row.key] = Routine(row.slug, routine.name, routine.orc_id or f"{AD_HOC_PREFIX}{row.slug.upper()}")
+        elif other := others.get(row.slug):
+            other_keys[row.key] = Other(row.slug, other.name)
         else:
             raise ConfigError(f"button {row.slug!r} matches no room, routine or other")
     return Keys(buttons, routine_keys, other_keys)
