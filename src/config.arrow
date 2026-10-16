@@ -1,0 +1,37 @@
+setting orc_base_url         ${ARROW_ORC_URL:-http://orc.example:8000}
+setting presence_name        someone
+setting http_timeout         60
+setting dim_delay_seconds    15
+setting active_brightness    100
+setting dim_brightness       0
+setting delay_notice_seconds 5
+
+badge on     electric-light-bulb
+badge off    electric-light-bulb:dim
+badge follow pushpin
+
+room hall    Hall    door
+room garden  Garden  deciduous-tree
+
+routine single  goodnight  Goodnight   crescent-moon
+routine single  wake_up    'Wake Up'   sunrise                  --orc-id=ROUTINE_WAKE_UP
+routine pair    quiet      Quiet       speaker-with-cancellation-stroke electric-light-bulb:dim
+routine caption everything Everything  electric-light-bulb      'All lights'
+routine marked  away       Away        house-building           pushpin:invert --orc-id='Leaving Home'
+
+other presence 'Check In' happy-person-raising-one-hand
+other help     Help       black-question-mark-ornament
+
+button hall   on      0
+button hall   off     1
+button hall   follow  2
+button garden on      8
+button garden off     9
+button garden follow 10
+button goodnight      4
+button wake_up        5
+button quiet         12
+button everything    13
+button away          16
+button presence       7
+button help          31

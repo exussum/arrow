@@ -4,17 +4,18 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageEnhance, ImageFont, ImageMath
 
 SIZE = 144
-BADGE = 112
 BULB_BADGE = 84
 PUSHPIN = "\U0001f4cc"
 BULB = "\U0001f4a1"
 
-EMOJI_FONT_PATH = "/System/Library/Fonts/Apple Color Emoji.ttc"
-EMOJI_NATIVE = 160
+FONTS_DIR = Path(__file__).resolve().parent / "fonts"
+
+EMOJI_FONT_PATH = str(FONTS_DIR / "NotoColorEmoji.ttf")
+EMOJI_NATIVE = 109
 EMOJI_TARGET = 120
 PAIR_TARGET = 84
 
-TEXT_FONT_PATH = "/System/Library/Fonts/HelveticaNeue.ttc"
+TEXT_FONT_PATH = str(FONTS_DIR / "LiberationSans-Regular.ttf")
 TEXT_FONT_SIZE = 110
 
 WAITING_LINES = ("Waiting", "for routine", "to finish")
@@ -24,11 +25,38 @@ PROCESSING_TEXT = "processing..."
 PROCESSING_FONT_SIZE = 18
 
 
-def render_emoji(emoji: str, target_size: int) -> Image.Image:
+_INK_SPAN: int | None = None
+
+
+def _ink(emoji: str, font: ImageFont.FreeTypeFont) -> tuple[Image.Image, tuple[int, int, int, int]]:
+    raw = Image.new("RGBA", (EMOJI_NATIVE * 3, EMOJI_NATIVE * 3), (0, 0, 0, 0))
+    ImageDraw.Draw(raw).text((EMOJI_NATIVE, EMOJI_NATIVE), emoji, font=font, embedded_color=True)
+    box = raw.getchannel("A").getbbox()
+    if box is None:
+        raise ValueError(f"{EMOJI_FONT_PATH} renders nothing for {emoji!r}")
+    return raw, box
+
+
+def calibrate(emojis: Sequence[str]) -> None:
+    # one scale for the whole set, so a thin glyph stays thin instead of being
+    # stretched to the tile like a per-glyph fit would do
+    global _INK_SPAN
     font = ImageFont.truetype(EMOJI_FONT_PATH, EMOJI_NATIVE)
-    raw = Image.new("RGBA", (EMOJI_NATIVE, EMOJI_NATIVE), (0, 0, 0, 0))
-    ImageDraw.Draw(raw).text((0, 0), emoji, font=font, embedded_color=True)
-    return raw.resize((target_size, target_size), Image.Resampling.LANCZOS)
+    _INK_SPAN = max(max(b[2] - b[0], b[3] - b[1]) for _, b in (_ink(e, font) for e in emojis))
+
+
+def render_emoji(emoji: str, target_size: int) -> Image.Image:
+    if _INK_SPAN is None:
+        raise RuntimeError("calibrate() must run before render_emoji()")
+    raw, box = _ink(emoji, ImageFont.truetype(EMOJI_FONT_PATH, EMOJI_NATIVE))
+    scale = target_size / _INK_SPAN
+    ink = raw.crop(box).resize(
+        (max(1, round((box[2] - box[0]) * scale)), max(1, round((box[3] - box[1]) * scale))),
+        Image.Resampling.LANCZOS,
+    )
+    out = Image.new("RGBA", (target_size, target_size), (0, 0, 0, 0))
+    out.alpha_composite(ink, ((target_size - ink.width) // 2, (target_size - ink.height) // 2))
+    return out
 
 
 def _paste_emoji(img: Image.Image, emoji: str, target: int, pos: tuple[int, int]) -> None:
@@ -144,10 +172,6 @@ def multiline_frame(lines: Sequence[str], font_size: int, fg: str = "white", bg:
         _draw_h_centered(draw, line, font, y, fg)
         y += line_height
     return frame
-
-
-def delayed_frame() -> Image.Image:
-    return multiline_frame(DELAYED_LINES, WAITING_FONT_SIZE)
 
 
 def save_countdown(seconds: int, out_path: Path, frame_ms: int = 1000) -> None:

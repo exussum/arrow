@@ -4,14 +4,17 @@ from PIL import Image
 
 from arrow import BUTTONS, ICONS_DIR, OTHERS, ROUTINES
 from arrow.img import (
+    BULB,
     DELAYED_LINES,
     PAIR_TARGET,
+    PUSHPIN,
     SIZE,
     WAITING_FONT_SIZE,
     add_bulb_off,
     add_bulb_on,
     add_label_text,
     add_pushpin,
+    calibrate,
     desaturate,
     diagonal,
     emoji_base,
@@ -65,6 +68,13 @@ ROUTINE_ICONS = {
     "weekly_review": "\U0001f4c5",  # 📅
 }
 
+DUSK = "\U0001f306"  # 🌆
+
+
+def all_emoji() -> list[str]:
+    return [*ROOMS.values(), *OTHER_ICONS.values(), *ROUTINE_ICONS.values(), BULB, PUSHPIN, DUSK]
+
+
 VARIANTS = {
     "on": add_bulb_on,
     "off": add_bulb_off,
@@ -73,6 +83,8 @@ VARIANTS = {
 
 
 def main():
+    calibrate(all_emoji())
+
     for variant, decorate in VARIANTS.items():
         out = ICONS_DIR / variant
         out.mkdir(parents=True, exist_ok=True)
@@ -89,14 +101,9 @@ def main():
         img = emoji_base(emoji)
         img.save(routines_out / f"{name}.png")
 
-    all_lights_emoji = "\U0001f4a1"
-    img = emoji_base(all_lights_emoji)
+    img = emoji_base("\U0001f4a1")
     add_label_text(img, "All\nlights", font_size=40)
     img.save(routines_out / "everything.png")
-
-    img = desaturate(emoji_base(all_lights_emoji))
-    add_label_text(img, "All\nlights", font_size=40)
-    img.save(routines_out / "everything_off.png")
 
     partial = diagonal("\U0001f4fa", "\U0001f4a1")  # 📺 + 💡
     partial.save(routines_out / "dim_the_hall.png")
@@ -110,7 +117,7 @@ def main():
     )
     reset.save(routines_out / "reset.png")
 
-    dusk = swap_white_to_black(emoji_base("\U0001f306"))  # 🌆
+    dusk = swap_white_to_black(emoji_base(DUSK))
     dusk.save(routines_out / "dusk.png")
 
     labels_root = ICONS_DIR / "labels"
