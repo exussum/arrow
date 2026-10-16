@@ -14,7 +14,7 @@ from PIL import Image, ImageDraw, ImageEnhance, ImageFont, ImageMath
 
 from arrow.config import config, countdown_targets, icon_targets
 from arrow.dal import orc, streamdeck
-from arrow.loader import Art, Icon
+from arrow.loader import Art, Caption, Icon, Marked, Pair, Single
 from arrow.models import Dispatch, IconMode
 
 SIZE = 144
@@ -142,10 +142,6 @@ class DeckManager:
             self._dim_timer = None
 
 
-def check() -> list[str]:
-    return missing_files() + against_orc()
-
-
 def missing_files() -> list[str]:
     if not config.icons.exists():
         return [f"missing {config.icons} — run arrow package"]
@@ -156,7 +152,7 @@ def missing_files() -> list[str]:
     return [f"{config.icons.name} has no {name} — run arrow package" for name in dict.fromkeys(wanted) if name not in held]
 
 
-def against_orc() -> list[str]:
+def unknown_actions() -> list[str]:
     actions = orc.fetch_actions()
     if not actions:
         return []
@@ -173,12 +169,8 @@ def against_orc() -> list[str]:
     return problems
 
 
-def build() -> dict[str, bytes]:
-    return generate_icons() | generate_countdowns()
-
-
 def generate_icons() -> dict[str, bytes]:
-    calibrate([icon.char for art in config.art.values() for icon in (*art.icons, *filter(None, (art.badge,)))])
+    calibrate([icon.char for art in config.art.values() for icon in art if isinstance(icon, Icon)])
     out = {name: _png(compose(config.art[art_key(key)])) for key, name in icon_targets(label=False)}
     out |= {name: _png(multiline_frame(label_lines(key), LABEL_FONT_SIZE)) for key, name in icon_targets(label=True)}
     out["delayed.png"] = _png(multiline_frame(DELAYED_LINES, WAITING_FONT_SIZE))
@@ -209,16 +201,20 @@ def write_zip(members: dict[str, bytes], out: Path) -> None:
 
 def compose(art: Art) -> Image.Image:
     img = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
-    if len(art.icons) == 2:
-        img.alpha_composite(glyph(art.icons[0], PAIR_TARGET), (0, 0))
-        img.alpha_composite(glyph(art.icons[1], PAIR_TARGET), (SIZE - PAIR_TARGET, SIZE - PAIR_TARGET))
-    else:
-        off = (SIZE - EMOJI_TARGET) // 2
-        img.alpha_composite(glyph(art.icons[0], EMOJI_TARGET), (off, off))
-        if art.badge:
-            img.alpha_composite(glyph(art.badge, BULB_BADGE), (SIZE - BULB_BADGE, SIZE - BULB_BADGE))
-    if art.text:
-        add_label_text(img, "\n".join(wrap_words(art.text, max_chars=6)), font_size=40)
+    centre = (SIZE - EMOJI_TARGET) // 2
+    corner = SIZE - PAIR_TARGET
+    match art:
+        case Single(icon):
+            img.alpha_composite(glyph(icon, EMOJI_TARGET), (centre, centre))
+        case Marked(icon, badge):
+            img.alpha_composite(glyph(icon, EMOJI_TARGET), (centre, centre))
+            img.alpha_composite(glyph(badge, BULB_BADGE), (SIZE - BULB_BADGE, SIZE - BULB_BADGE))
+        case Pair(first, second):
+            img.alpha_composite(glyph(first, PAIR_TARGET), (0, 0))
+            img.alpha_composite(glyph(second, PAIR_TARGET), (corner, corner))
+        case Caption(icon, text):
+            img.alpha_composite(glyph(icon, EMOJI_TARGET), (centre, centre))
+            add_label_text(img, "\n".join(wrap_words(text, max_chars=6)), font_size=40)
     return img
 
 
@@ -278,16 +274,12 @@ def build_dispatch() -> dict[int, Dispatch]:
     return presence | rooms | routines
 
 
-def search(query: str) -> list[tuple[str, str]]:
-    return [(c, to_name(c)) for c, n in _named() if query.upper() in n]
+def search_icons(query: str) -> list[tuple[str, str]]:
+    return [(c, icon_name(c)) for c, n in _named() if query.upper() in n]
 
 
-def to_name(char: str) -> str:
+def icon_name(char: str) -> str:
     return unicodedata.name(char.replace("️", "")).lower().replace(" ", "-")
-
-
-def to_char(name: str) -> str:
-    return unicodedata.lookup(name.replace("-", " ").upper())
 
 
 def calibrate(emojis: Sequence[str]) -> None:

@@ -32,15 +32,15 @@ def main() -> None:
 
 def _icons(action: str, words: list[str]) -> int:
     if action == "search":
-        for char, name in api.search(" ".join(words)):
+        for char, name in api.search_icons(" ".join(words)):
             print(f"{char}\t--icon={name}")
     else:
-        print(" ".join(f"--icon={api.to_name(word)}" for word in words))
+        print(" ".join(f"--icon={api.icon_name(word)}" for word in words))
     return 0
 
 
 def _check() -> int:
-    problems = api.check()
+    problems = api.missing_files() + api.unknown_actions()
     for problem in problems:
         print(problem, file=sys.stderr)
     print(f"{len(config.buttons) + len(config.routines) + len(config.others)} buttons, {len(problems)} problems")
@@ -48,7 +48,7 @@ def _check() -> int:
 
 
 def _package(out: Path) -> int:
-    members = api.build()
+    members = api.generate_icons() | api.generate_countdowns()
     api.write_zip(members, out)
     print(f"{out}: {len(members)} files, {out.stat().st_size // 1024} KiB")
     return 0

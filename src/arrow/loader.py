@@ -41,31 +41,31 @@ class Settings:
     INTS = ("http_timeout", "dim_delay_seconds", "active_brightness", "dim_brightness", "delay_notice_seconds")
 
 
-@dataclass(frozen=True)
-class Icon:
-    name: str
+class Icon(NamedTuple):
+    char: str
     filter: str | None = None
 
-    @classmethod
-    def parse(cls, spec: str) -> "Icon":
-        name, _, flt = spec.partition(":")
-        if flt and flt not in FILTERS:
-            raise ConfigError(f"unknown icon filter {flt!r}: expected one of {FILTERS}")
-        return cls(name, flt or None)
 
-    @property
-    def char(self) -> str:
-        try:
-            return unicodedata.lookup(self.name.replace("-", " ").upper())
-        except KeyError:
-            raise ConfigError(f"unknown icon name {self.name!r}") from None
+class Single(NamedTuple):
+    icon: Icon
 
 
-@dataclass(frozen=True)
-class Art:
-    icons: tuple[Icon, ...]
-    text: str | None = None
-    badge: Icon | None = None
+class Pair(NamedTuple):
+    first: Icon
+    second: Icon
+
+
+class Caption(NamedTuple):
+    icon: Icon
+    text: str
+
+
+class Marked(NamedTuple):
+    icon: Icon
+    badge: Icon
+
+
+Art = Single | Pair | Caption | Marked
 
 
 class BadgeRow(NamedTuple):
@@ -139,7 +139,7 @@ def parse(text: str) -> Parsed:
         variables=os.environ,
     )
 
-    badges = {row.action: Icon.parse(row.icon) for row in objects["badge"]}
+    badges = {row.action: _icon(row.icon) for row in objects["badge"]}
     rooms = {row.slug: row for row in objects["room"]}
     routines = {row.slug: row for row in objects["routine"]}
     others = {row.slug: row for row in objects["other"]}
@@ -159,6 +159,29 @@ def source(path: str | Path | None = None) -> Path:
     return Path(path or os.getenv("ARROW_CONFIG") or CONFIG_PATH)
 
 
+def _icon(spec: str) -> Icon:
+    name, _, flt = spec.partition(":")
+    if flt and flt not in FILTERS:
+        raise ConfigError(f"unknown icon filter {flt!r}: expected one of {FILTERS}")
+    try:
+        return Icon(unicodedata.lookup(name.replace("-", " ").upper()), flt or None)
+    except KeyError:
+        raise ConfigError(f"unknown icon name {name!r}") from None
+
+
+def _routine_art(routine: RoutineRow) -> Art:
+    icon = _icon(routine.icon)
+    match routine.layout:
+        case "pair":
+            return Pair(icon, _icon(routine.icon2 or ""))
+        case "caption":
+            return Caption(icon, routine.text or "")
+        case "marked":
+            return Marked(icon, _icon(routine.badge or ""))
+        case _:
+            return Single(icon)
+
+
 def _as_int(value: str, _objects: object = None) -> int:
     # scalar() calls a type with (value, objects); builtins.int reads the second as a base
     return int(value)
@@ -173,14 +196,11 @@ def _art(
     art: dict[str, Art] = {}
     for slug, room in rooms.items():
         for state in ACTIONS:
-            art[f"{slug}/{state}"] = Art((Icon.parse(room.icon),), badge=badges.get(state))
+            art[f"{slug}/{state}"] = Marked(_icon(room.icon), badges[state])
     for slug, routine in routines.items():
-        icons = (Icon.parse(routine.icon),) + ((Icon.parse(routine.icon2 or ""),) if routine.layout == "pair" else ())
-        text = routine.text if routine.layout == "caption" else None
-        badge = Icon.parse(routine.badge or "") if routine.layout == "marked" else None
-        art[slug] = Art(icons, text=text, badge=badge)
+        art[slug] = _routine_art(routine)
     for slug, other in others.items():
-        art[slug] = Art((Icon.parse(other.icon),))
+        art[slug] = Single(_icon(other.icon))
     return art
 
 

@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 from command_cfg import ConfigError
 
-from arrow.loader import Icon, parse
+from arrow.loader import Caption, Icon, Marked, Pair, Single, parse
 
 FIXTURES = Path(__file__).parent / "fixture"
 
@@ -20,6 +20,7 @@ def parsed(name: str = "base"):
         ("room_without_state", "needs one of"),
         ("non_room_with_state", "takes no action"),
         ("unknown_icon_filter", "unknown icon filter"),
+        ("unknown_icon_name", "unknown icon name"),
     ),
 )
 def test_rejects(fixture, expected):
@@ -41,22 +42,11 @@ def test_orc_id_defaults_to_ad_hoc_slug():
 @pytest.mark.parametrize(
     ("key", "expected"),
     (
-        ("nap", (Icon("sleeping-symbol"),)),
-        ("reset", (Icon("electric-light-bulb", "dim"), Icon("speaker-with-cancellation-stroke"))),
-        ("den/off", (Icon("couch-and-lamp"),)),
+        ("nap", Single(Icon("\U0001f4a4"))),
+        ("reset", Pair(Icon("\U0001f4a1", "dim"), Icon("\U0001f507"))),
+        ("lights", Caption(Icon("\U0001f4a1"), "All lights")),
+        ("den/off", Marked(Icon("\U0001f6cb"), Icon("\U0001f4a1", "dim"))),
     ),
 )
 def test_layouts_become_art(key, expected):
-    assert parsed().art[key].icons == expected
-
-
-def test_caption_and_badge_land_on_art():
-    config = parsed()
-    assert config.art["lights"].text == "All lights"
-    assert config.art["den/off"].badge == Icon("electric-light-bulb", "dim")
-
-
-def test_icon_names_resolve_to_glyphs():
-    assert Icon("electric-light-bulb").char == "\U0001f4a1"
-    with pytest.raises(ConfigError, match="unknown icon name"):
-        Icon("not-an-emoji").char
+    assert parsed().art[key] == expected
