@@ -1,0 +1,17 @@
+setting orc_base_url  http://orc.example
+setting presence_name someone
+
+badge on     electric-light-bulb
+badge off    electric-light-bulb:dim
+badge follow pushpin
+
+room den Den couch-and-lamp
+
+routine single  nap    Nap      sleeping-symbol
+routine pair    reset  Reset    electric-light-bulb:dim speaker-with-cancellation-stroke --orc-id=ROUTINE_RESET
+routine caption lights 'Lights' electric-light-bulb     'All lights'
+
+other help Help black-question-mark-ornament
+
+button nap 4
+button help 4

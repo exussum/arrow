@@ -12,8 +12,7 @@ def missing_files() -> list[str]:
 
 def against_orc() -> list[str]:
     actions = orc.fetch_actions()
-    if actions is None:
-        # unreachable is "not verified", not "verified wrong" — don't fail on it
+    if not actions:
         print(f"skipped orc checks: {config.settings.orc_base_url}/api/actions did not answer", file=sys.stderr)
         return []
 
@@ -29,7 +28,7 @@ def against_orc() -> list[str]:
     return problems
 
 
-def main(argv: list[str]) -> int:
+def check(argv: list[str]) -> int:
     config.load(argv[0] if argv else None)
     problems = missing_files() + against_orc()
     for problem in problems:

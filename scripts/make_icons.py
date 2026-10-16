@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 
-from arrow import runner
+from arrow import api
 from arrow.config import ICONS_DIR, config
 
 
 def main() -> int:
     config.load()
-    runner.write_dir(runner.icons(), ICONS_DIR)
+    api.write_dir(api.generate_icons(), ICONS_DIR)
     return 0
 
 

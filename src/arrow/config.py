@@ -1,11 +1,11 @@
 from itertools import chain
 from pathlib import Path
-from types import SimpleNamespace
 from typing import Any
 
 from command_cfg import ConfigError
 
 from arrow import loader
+from arrow.loader import Parsed
 
 ICONS_DIR = Path(__file__).resolve().parent / "icons"
 
@@ -21,7 +21,7 @@ class Config:
     def load(self, path: str | Path | None = None) -> None:
         self._install(loader.read(path))
 
-    def _install(self, parsed: SimpleNamespace) -> None:
+    def _install(self, parsed: Parsed) -> None:
         self.settings = parsed.settings
         self.badges = parsed.badges
         self.buttons = parsed.buttons
