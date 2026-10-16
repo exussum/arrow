@@ -48,3 +48,14 @@ def icon_targets(label: bool = False) -> list[tuple[int, Path]]:
             ((key, base / f"{other.slug}.png") for key, other in config.others.items()),
         )
     )
+
+
+def countdown_targets() -> list[tuple[int, Path]]:
+    base = ICONS_DIR / "countdowns"
+    return list(
+        chain(
+            ((key, base / "presence.gif") for key, other in config.others.items() if other.slug == "presence"),
+            ((key, base / button.action / f"{button.slug}.gif") for key, button in config.buttons.items()),
+            ((key, base / "routines" / f"{routine.slug}.gif") for key, routine in config.routines.items()),
+        )
+    )

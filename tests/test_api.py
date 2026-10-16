@@ -4,9 +4,11 @@ from pathlib import Path
 
 import pytest
 
-from arrow import api, dal
-from arrow.api import DeckManager, DisplayManager, ImageManager
+from arrow import api
+from arrow.api import DeckManager
 from arrow.config import config
+from arrow.dal import orc
+from arrow.dal.streamdeck import DisplayManager, ImageManager
 from arrow.models import Dispatch
 
 GIF = Path("/fake/countdown.gif")
@@ -148,7 +150,7 @@ class TestRun:
 
     def test_shows_delayed_notice_when_delay_present(self, make_manager, monkeypatch):
         manager, deck = make_manager(brightness=config.settings.active_brightness)
-        monkeypatch.setattr(dal, "get_delay", lambda name: timedelta(minutes=3))
+        monkeypatch.setattr(orc, "get_delay", lambda name: timedelta(minutes=3))
         sleeps = []
         monkeypatch.setattr(api.time, "sleep", sleeps.append)
         calls = []
@@ -159,14 +161,14 @@ class TestRun:
 
     def test_no_delayed_notice_when_no_delay(self, make_manager, monkeypatch):
         manager, deck = make_manager(brightness=config.settings.active_brightness)
-        monkeypatch.setattr(dal, "get_delay", lambda name: None)
+        monkeypatch.setattr(orc, "get_delay", lambda name: None)
         manager._run(0, GIF, lambda: None, name="Goodnight")
         assert DELAYED not in uploaded(deck)
 
     def test_no_delayed_notice_when_name_is_none(self, make_manager, monkeypatch):
         manager, deck = make_manager(brightness=config.settings.active_brightness)
         checked = []
-        monkeypatch.setattr(dal, "get_delay", lambda name: checked.append(name) or timedelta(minutes=1))
+        monkeypatch.setattr(orc, "get_delay", lambda name: checked.append(name) or timedelta(minutes=1))
         manager._run(0, GIF, lambda: None)
         assert checked == []
         assert DELAYED not in uploaded(deck)

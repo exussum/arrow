@@ -1,148 +1,212 @@
-import random
 import sys
 import threading
 import time
-from collections.abc import Callable
-from dataclasses import dataclass
-from functools import partial, wraps
+import unicodedata
+from collections.abc import Callable, Sequence
+from functools import partial
 from pathlib import Path
-from typing import Any
+from typing import IO
 
-from PIL import Image
-from StreamDeck.DeviceManager import DeviceManager
-from StreamDeck.ImageHelpers import PILHelper
+from PIL import Image, ImageDraw, ImageEnhance, ImageFont, ImageMath
 
-from arrow import dal
-from arrow.config import ICONS_DIR, config, icon_targets
-from arrow.img import SIZE
+from arrow.config import ICONS_DIR, config, countdown_targets
+from arrow.dal import orc, streamdeck
 from arrow.models import Dispatch, IconMode
 
+SIZE = 144
+BULB_BADGE = 84
 
-@dataclass
-class ImageManager:
-    icons: dict[int, Any]
-    labels: dict[int, Any]
-    frames: dict[Path, list[Any]]
-    blank: dict[int, Any]
-    delayed: dict[int, Any]
+FONTS_DIR = Path(__file__).resolve().parent / "fonts"
 
-    @classmethod
-    def build(cls, deck: Any, gif_paths: list[Path]) -> "ImageManager":
-        return cls(
-            icons=cls._build_icon_cache(deck, label=False),
-            labels=cls._build_icon_cache(deck, label=True),
-            frames=cls._build_gif_cache(deck, gif_paths),
-            blank=cls._build_cache(deck, Image.new("RGB", (SIZE, SIZE), "black")),
-            delayed=cls._build_cache(deck, Image.open(ICONS_DIR / "delayed.png")),
+EMOJI_FONT_PATH = str(FONTS_DIR / "NotoColorEmoji.ttf")
+EMOJI_NATIVE = 109
+EMOJI_TARGET = 120
+PAIR_TARGET = 84
+
+TEXT_FONT_PATH = str(FONTS_DIR / "LiberationSans-Regular.ttf")
+TEXT_FONT_SIZE = 110
+
+WAITING_LINES = ("Waiting", "for routine", "to finish")
+WAITING_FONT_SIZE = 22
+DELAYED_LINES = ("Delayed", "will run", "after wait")
+PROCESSING_TEXT = "processing..."
+PROCESSING_FONT_SIZE = 18
+
+
+_INK_SPAN: int | None = None
+
+
+def _ink(emoji: str, font: ImageFont.FreeTypeFont) -> tuple[Image.Image, tuple[int, int, int, int]]:
+    raw = Image.new("RGBA", (EMOJI_NATIVE * 3, EMOJI_NATIVE * 3), (0, 0, 0, 0))
+    ImageDraw.Draw(raw).text((EMOJI_NATIVE, EMOJI_NATIVE), emoji, font=font, embedded_color=True)
+    box = raw.getchannel("A").getbbox()
+    if box is None:
+        raise ValueError(f"{EMOJI_FONT_PATH} renders nothing for {emoji!r}")
+    return raw, box
+
+
+def calibrate(emojis: Sequence[str]) -> None:
+    # one scale for the whole set, so a thin glyph stays thin instead of being
+    # stretched to the tile like a per-glyph fit would do
+    global _INK_SPAN
+    font = ImageFont.truetype(EMOJI_FONT_PATH, EMOJI_NATIVE)
+    _INK_SPAN = max(max(b[2] - b[0], b[3] - b[1]) for _, b in (_ink(e, font) for e in emojis))
+
+
+def render_emoji(emoji: str, target_size: int) -> Image.Image:
+    if _INK_SPAN is None:
+        raise RuntimeError("calibrate() must run before render_emoji()")
+    raw, box = _ink(emoji, ImageFont.truetype(EMOJI_FONT_PATH, EMOJI_NATIVE))
+    scale = target_size / _INK_SPAN
+    ink = raw.crop(box).resize(
+        (max(1, round((box[2] - box[0]) * scale)), max(1, round((box[3] - box[1]) * scale))),
+        Image.Resampling.LANCZOS,
+    )
+    out = Image.new("RGBA", (target_size, target_size), (0, 0, 0, 0))
+    out.alpha_composite(ink, ((target_size - ink.width) // 2, (target_size - ink.height) // 2))
+    return out
+
+
+def desaturate(img: Image.Image, brightness: float = 0.5) -> Image.Image:
+    grey = ImageEnhance.Color(img).enhance(0.0)
+    return ImageEnhance.Brightness(grey).enhance(brightness)
+
+
+def swap_white_to_black(img: Image.Image, threshold: int = 200) -> Image.Image:
+    r, g, b, a = img.split()
+    mask = ImageMath.unsafe_eval(
+        'convert(((r >= t) & (g >= t) & (b >= t) & (a > 0)) * 255, "L")',
+        r=r,
+        g=g,
+        b=b,
+        a=a,
+        t=threshold,
+    )
+    black = Image.new("RGBA", img.size)
+    black.putalpha(a)
+    return Image.composite(black, img, mask)
+
+
+def _text_height(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.FreeTypeFont) -> int:
+    b = draw.textbbox((0, 0), text, font=font)
+    return int(b[3] - b[1])
+
+
+def _draw_h_centered(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.FreeTypeFont, top: int, fg: str) -> None:
+    bbox = draw.textbbox((0, 0), text, font=font)
+    draw.text(
+        ((SIZE - (bbox[2] - bbox[0])) // 2 - bbox[0], top - bbox[1]),
+        text,
+        font=font,
+        fill=fg,
+    )
+
+
+def add_label_text(img: Image.Image, text: str, font_size: int = 20) -> None:
+    font = ImageFont.truetype(TEXT_FONT_PATH, font_size)
+    draw = ImageDraw.Draw(img)
+    lines = text.split("\n")
+    line_h = int(max(draw.textbbox((0, 0), line, font=font)[3] for line in lines)) + 4
+    y = int(SIZE * 0.25)
+    for line in lines:
+        draw.text(
+            (SIZE // 2, y),
+            line,
+            font=font,
+            anchor="mt",
+            fill=(0, 0, 0, 255),
+            stroke_width=2,
+            stroke_fill=(255, 255, 255, 255),
         )
-
-    @classmethod
-    def _build_icon_cache(cls, deck: Any, label: bool = False) -> dict[int, Any]:
-        return {key: cls._open_native(deck, path) for key, path in icon_targets(label)}
-
-    @classmethod
-    def _build_cache(cls, deck: Any, image: Image.Image) -> dict[int, Any]:
-        native = cls._to_native(deck, image)
-        return {k: native for k in range(deck.key_count())}
-
-    @classmethod
-    def _build_gif_cache(cls, deck: Any, gif_paths: list[Path]) -> dict[Path, list[Any]]:
-        return {path: cls._gif_frames_native(deck, path) for path in gif_paths}
-
-    @staticmethod
-    def _to_native(deck: Any, pil_img: Image.Image) -> Any:
-        scaled = PILHelper.create_scaled_image(deck, pil_img, margins=[0, 0, 0, 0])
-        return PILHelper.to_native_format(deck, scaled)
-
-    @classmethod
-    def _open_native(cls, deck: Any, path: Path) -> Any:
-        with Image.open(path) as img:
-            return cls._to_native(deck, img)
-
-    @classmethod
-    def _gif_frames_native(cls, deck: Any, path: Path) -> list[Any]:
-        frames = []
-        with Image.open(path) as img:
-            for i in range(getattr(img, "n_frames")):
-                img.seek(i)
-                frames.append(cls._to_native(deck, img.convert("RGB")))
-        return frames
+        y += line_h
 
 
-def with_deck(method: Callable) -> Callable:
-    @wraps(method)
-    def wrapper(self: "DisplayManager", *args: Any, **kwargs: Any) -> Any:
-        with self.deck:
-            return method(self, *args, **kwargs)
+def _text_frame(text: str, fg: str = "white", bg: str = "black") -> Image.Image:
+    text_font = ImageFont.truetype(TEXT_FONT_PATH, TEXT_FONT_SIZE)
+    processing_font = ImageFont.truetype(TEXT_FONT_PATH, PROCESSING_FONT_SIZE)
+    frame = Image.new("RGB", (SIZE, SIZE), bg)
+    draw = ImageDraw.Draw(frame)
+    big_top = (SIZE - _text_height(draw, text, text_font)) // 2 - 10
+    proc_top = SIZE - _text_height(draw, PROCESSING_TEXT, processing_font) - 6
+    _draw_h_centered(draw, text, text_font, big_top, fg)
+    _draw_h_centered(draw, PROCESSING_TEXT, processing_font, proc_top, fg)
+    return frame
 
-    return wrapper
+
+def multiline_frame(lines: Sequence[str], font_size: int, fg: str = "white", bg: str = "black") -> Image.Image:
+    frame = Image.new("RGB", (SIZE, SIZE), bg)
+    draw = ImageDraw.Draw(frame)
+    font = ImageFont.truetype(TEXT_FONT_PATH, font_size)
+    line_height = max(_text_height(draw, line, font) for line in lines) + 4
+    y = (SIZE - (line_height * len(lines) - 4)) // 2
+    for line in lines:
+        _draw_h_centered(draw, line, font, y, fg)
+        y += line_height
+    return frame
 
 
-class DisplayManager:
-    def __init__(self, deck: Any, cache: ImageManager) -> None:
-        self.deck = deck
-        self._cache = cache
-        self._show_labels = False
+def save_countdown(seconds: int, out: Path | IO[bytes], frame_ms: int = 1000) -> None:
+    frames = [_text_frame(str(n)) for n in range(seconds, 0, -1)]
+    frames.append(multiline_frame(WAITING_LINES, WAITING_FONT_SIZE))
+    frames[0].save(
+        out,
+        format="GIF",
+        save_all=True,
+        append_images=frames[1:],
+        duration=frame_ms,
+        disposal=2,
+        optimize=False,
+    )
 
-    @with_deck
-    def upload_icons(self, mode: IconMode) -> None:
-        self._show_labels = mode == IconMode.LABELS
-        match mode:
-            case IconMode.BLANK:
-                icons = self._cache.blank
-            case IconMode.LABELS:
-                icons = self._cache.labels
-            case IconMode.ICONS:
-                icons = self._cache.icons
-            case _:
-                raise ValueError(f"unhandled IconMode: {mode}")
-        items = list(icons.items())
-        random.shuffle(items)
-        for key, native in items:
-            self.deck.set_key_image(key, native)
 
-    @with_deck
-    def set_brightness(self, level: int) -> None:
-        self.deck.set_brightness(level)
+RANGES = ((0x2190, 0x33FF), (0x1F000, 0x1FAFF))
 
-    @with_deck
-    def close(self) -> None:
-        self.deck.set_brightness(0)
-        self.deck.close()
 
-    def toggle_labels(self) -> None:
-        self.upload_icons(IconMode.ICONS if self._show_labels else IconMode.LABELS)
+def _named() -> list[tuple[str, str]]:
+    out = []
+    for lo, hi in RANGES:
+        for cp in range(lo, hi + 1):
+            try:
+                out.append((chr(cp), unicodedata.name(chr(cp))))
+            except ValueError:
+                pass
+    return out
 
-    def on_dim(self) -> None:
-        if self._show_labels:
-            self.upload_icons(IconMode.ICONS)
 
-    @with_deck
-    def _set_key_image(self, key: int, native: Any) -> None:
-        self.deck.set_key_image(key, native)
+def to_name(char: str) -> str:
+    return unicodedata.name(char.replace("️", "")).lower().replace(" ", "-")
 
-    def show_delayed_notice(self, key: int) -> None:
-        self._set_key_image(key, self._cache.delayed[key])
 
-    def play_countdown(self, key: int, gif_path: Path, done: threading.Event) -> None:
-        frames = self._cache.frames[gif_path]
-        last = len(frames) - 1
-        for i, native in enumerate(frames):
-            self._set_key_image(key, native)
-            if done.wait(timeout=None if i == last else 1.0):
-                return
+def to_char(name: str) -> str:
+    return unicodedata.lookup(name.replace("-", " ").upper())
+
+
+def search(query: str) -> list[tuple[str, str]]:
+    return [(c, to_name(c)) for c, n in _named() if query.upper() in n]
+
+
+def icon_lookup(argv: list[str]) -> int:
+    if len(argv) >= 2 and argv[0] == "search":
+        for char, name in search(" ".join(argv[1:])):
+            print(f"{char}\t--icon={name}")
+        return 0
+    if len(argv) >= 2 and argv[0] == "name":
+        print(" ".join(f"--icon={to_name(c)}" for c in argv[1:]))
+        return 0
+    print("usage: arrow icons search <word> | arrow icons name <emoji>...", file=sys.stderr)
+    return 2
 
 
 def build_dispatch() -> dict[int, Dispatch]:
     presence = {
-        key: Dispatch(ICONS_DIR / "countdowns" / "presence.gif", partial(dal.call_presence, config.settings.presence_name))
+        key: Dispatch(ICONS_DIR / "countdowns" / "presence.gif", partial(orc.call_presence, config.settings.presence_name))
         for key, other in config.others.items()
         if other.slug == "presence"
     }
     rooms = {
         key: Dispatch(
             ICONS_DIR / "countdowns" / b.action / f"{b.slug}.gif",
-            partial(dal.call_room, b.display_name, b.action),
+            partial(orc.call_room, b.display_name, b.action),
             b.display_name,
         )
         for key, b in config.buttons.items()
@@ -150,7 +214,7 @@ def build_dispatch() -> dict[int, Dispatch]:
     routines = {
         key: Dispatch(
             ICONS_DIR / "countdowns" / "routines" / f"{r.slug}.gif",
-            partial(dal.call_routine, r.orc_id or r.display_name, r.display_name),
+            partial(orc.call_routine, r.orc_id or r.display_name, r.display_name),
             r.orc_id or r.display_name,
         )
         for key, r in config.routines.items()
@@ -159,7 +223,7 @@ def build_dispatch() -> dict[int, Dispatch]:
 
 
 class DeckManager:
-    def __init__(self, brightness: int, display: DisplayManager) -> None:
+    def __init__(self, brightness: int, display: streamdeck.DisplayManager) -> None:
         self._brightness = brightness
         self._display = display
         self._DISPATCH = build_dispatch()
@@ -169,18 +233,14 @@ class DeckManager:
 
     @classmethod
     def build_manager(cls, brightness: int) -> "DeckManager":
-        decks = DeviceManager().enumerate()
-        if not decks:
-            raise RuntimeError("no StreamDeck found")
-        deck = decks[0]
-        deck.open()
+        deck = streamdeck.open_deck()
         try:
-            gif_paths = [entry.gif for entry in build_dispatch().values()]
-            cache = ImageManager.build(deck, gif_paths)
+            gif_paths = [path for _, path in countdown_targets()]
+            cache = streamdeck.ImageManager.build(deck, gif_paths)
         except Exception:
             deck.close()
             raise
-        return cls(brightness=brightness, display=DisplayManager(deck=deck, cache=cache))
+        return cls(brightness=brightness, display=streamdeck.DisplayManager(deck=deck, cache=cache))
 
     def initialize(self) -> None:
         self._display.deck.reset()
@@ -232,7 +292,7 @@ class DeckManager:
             self._schedule_dim()
 
     def _notify_delay(self, key: int, name: str | None) -> None:
-        if name is not None and dal.get_delay(name):
+        if name is not None and orc.get_delay(name):
             self._display.show_delayed_notice(key)
             time.sleep(config.settings.delay_notice_seconds)
 

@@ -6,13 +6,13 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import pytest
 
-from arrow import dal
 from arrow.config import config
+from arrow.dal import orc
 
 
 @pytest.fixture(autouse=True)
 def no_delays(monkeypatch):
-    monkeypatch.setattr(dal, "_delays", lambda: {})
+    monkeypatch.setattr(orc, "_delays", lambda: {})
 
 
 @pytest.fixture
@@ -48,61 +48,61 @@ def unreachable_server(monkeypatch):
 
 class TestCallRoom:
     def test_builds_correct_url(self, received_paths):
-        dal.call_room("hall", "on")
+        orc.call_room("hall", "on")
         assert received_paths == ["/api/room/hall?state=on"]
 
     def test_builds_url_for_each_state(self, received_paths):
-        dal.call_room("garden", "follow")
+        orc.call_room("garden", "follow")
         assert received_paths == ["/api/room/garden?state=follow"]
 
     def test_swallows_exceptions(self, unreachable_server, capsys):
-        dal.call_room("study", "off")
+        orc.call_room("study", "off")
         assert "call failed study off" in capsys.readouterr().err
 
 
 class TestCallRoutine:
     def test_builds_correct_url(self, received_paths):
-        dal.call_routine("goodnight", "Goodnight")
+        orc.call_routine("goodnight", "Goodnight")
         assert received_paths == ["/api/run/goodnight"]
 
     def test_swallows_exceptions(self, unreachable_server, capsys):
-        dal.call_routine("goodnight", "Goodnight")
+        orc.call_routine("goodnight", "Goodnight")
         assert "call failed Goodnight" in capsys.readouterr().err
 
 
 class TestCallPresence:
     def test_builds_correct_url(self, received_paths):
-        dal.call_presence("someone")
+        orc.call_presence("someone")
         assert received_paths == ["/api/presence/someone/checkin"]
 
     def test_swallows_exceptions(self, unreachable_server, capsys):
-        dal.call_presence("someone")
+        orc.call_presence("someone")
         assert "call failed presence someone" in capsys.readouterr().err
 
 
 class TestAnnounceDelay:
     def test_announces_before_calling_when_delay_present(self, monkeypatch, received_paths):
-        monkeypatch.setattr(dal, "_delays", lambda: {"goodnight": timedelta(minutes=3)})
+        monkeypatch.setattr(orc, "_delays", lambda: {"goodnight": timedelta(minutes=3)})
         announced = []
-        monkeypatch.setattr(dal, "call_announce", announced.append)
-        dal.call_routine("goodnight", "Goodnight")
+        monkeypatch.setattr(orc, "call_announce", announced.append)
+        orc.call_routine("goodnight", "Goodnight")
         assert announced == ["Goodnight routine will go off in 3 minutes"]
         assert received_paths == ["/api/run/goodnight"]
 
     def test_no_announcement_when_no_delay(self, monkeypatch, received_paths):
         announced = []
-        monkeypatch.setattr(dal, "call_announce", announced.append)
-        dal.call_room("hall", "on")
+        monkeypatch.setattr(orc, "call_announce", announced.append)
+        orc.call_room("hall", "on")
         assert announced == []
 
 
 class TestGetDelay:
     def test_returns_delay_when_present(self, monkeypatch):
-        monkeypatch.setattr(dal, "_delays", lambda: {"goodnight": timedelta(minutes=3)})
-        assert dal.get_delay("goodnight") == timedelta(minutes=3)
+        monkeypatch.setattr(orc, "_delays", lambda: {"goodnight": timedelta(minutes=3)})
+        assert orc.get_delay("goodnight") == timedelta(minutes=3)
 
     def test_returns_none_when_absent(self):
-        assert dal.get_delay("goodnight") is None
+        assert orc.get_delay("goodnight") is None
 
 
 @pytest.mark.parametrize(
@@ -117,8 +117,8 @@ class TestGetDelay:
     ],
 )
 def test_format_delay(seconds, expected):
-    assert dal._format_delay(timedelta(seconds=seconds)) == expected
+    assert orc._format_delay(timedelta(seconds=seconds)) == expected
 
 
 def test_parse_delay():
-    assert dal._parse_delay("0:03:00") == timedelta(minutes=3)
+    assert orc._parse_delay("0:03:00") == timedelta(minutes=3)
