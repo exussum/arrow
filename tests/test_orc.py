@@ -12,7 +12,7 @@ from arrow.dal import orc
 
 @pytest.fixture(autouse=True)
 def no_delays(monkeypatch):
-    monkeypatch.setattr(orc, "_delays", lambda: {})
+    monkeypatch.setattr(orc, "_timings", lambda: {})
 
 
 @pytest.fixture
@@ -80,44 +80,13 @@ class TestCallPresence:
         assert "call failed presence someone" in capsys.readouterr().err
 
 
-class TestAnnounceDelay:
-    def test_announces_before_calling_when_delay_present(self, monkeypatch, received_paths):
-        monkeypatch.setattr(orc, "_delays", lambda: {"goodnight": timedelta(minutes=3)})
-        announced = []
-        monkeypatch.setattr(orc, "call_announce", announced.append)
-        orc.call_routine("goodnight", "Goodnight")
-        assert announced == ["Goodnight routine will go off in 3 minutes"]
-        assert received_paths == ["/api/run/goodnight"]
-
-    def test_no_announcement_when_no_delay(self, monkeypatch, received_paths):
-        announced = []
-        monkeypatch.setattr(orc, "call_announce", announced.append)
-        orc.call_room("hall", "on")
-        assert announced == []
-
-
 class TestGetDelay:
     def test_returns_delay_when_present(self, monkeypatch):
-        monkeypatch.setattr(orc, "_delays", lambda: {"goodnight": timedelta(minutes=3)})
+        monkeypatch.setattr(orc, "_timings", lambda: {"goodnight": {"delay": "0:03:00"}})
         assert orc.get_delay("goodnight") == timedelta(minutes=3)
 
     def test_returns_none_when_absent(self):
         assert orc.get_delay("goodnight") is None
-
-
-@pytest.mark.parametrize(
-    "seconds,expected",
-    [
-        (0, "0 seconds"),
-        (1, "1 second"),
-        (45, "45 seconds"),
-        (60, "1 minute"),
-        (90, "1 minute and 30 seconds"),
-        (120, "2 minutes"),
-    ],
-)
-def test_format_delay(seconds, expected):
-    assert orc._format_delay(timedelta(seconds=seconds)) == expected
 
 
 def test_parse_delay():

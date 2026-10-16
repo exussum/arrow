@@ -5,6 +5,7 @@ import time
 import unicodedata
 import zipfile
 from collections.abc import Callable, Sequence
+from datetime import timedelta
 from functools import partial
 from pathlib import Path
 from typing import IO
@@ -14,7 +15,7 @@ from PIL import Image, ImageDraw, ImageEnhance, ImageFont, ImageMath
 from arrow.config import config, countdown_targets, icon_targets
 from arrow.dal import orc, streamdeck
 from arrow.loader import Art, Icon
-from arrow.models import Button, Dispatch, IconMode, Routine
+from arrow.models import Dispatch, IconMode
 
 SIZE = 144
 BULB_BADGE = 84
@@ -90,12 +91,12 @@ class DeckManager:
         elif entry := self._dispatch.get(key):
             self._display.upload_icons(IconMode.BLANK)
             self._cancel_dim()
-            self._run(key, entry.gif, entry.action, entry.name)
+            self._run(key, entry.gif, entry.action, entry.label, entry.delay_key)
         else:
             print(f"button {key} unmapped", file=sys.stderr)
 
-    def _run(self, key: int, gif: str, action: Callable[[], object], name: str | None = None) -> None:
-        self._notify_delay(key, name)
+    def _run(self, key: int, gif: str, action: Callable[[], object], label: str | None = None, delay_key: str | None = None) -> None:
+        self._notify_delay(key, label, delay_key)
         done = threading.Event()
         animator = threading.Thread(
             target=self._display.play_countdown,
@@ -111,10 +112,12 @@ class DeckManager:
             self._display.upload_icons(IconMode.ICONS)
             self._schedule_dim()
 
-    def _notify_delay(self, key: int, name: str | None) -> None:
-        if name and orc.get_delay(name):
-            self._display.show_delayed_notice(key)
-            time.sleep(config.settings.delay_notice_seconds)
+    def _notify_delay(self, key: int, label: str | None, delay_key: str | None) -> None:
+        if not delay_key or not (delay := orc.get_delay(delay_key)):
+            return
+        orc.call_announce(f"{label} routine will go off in {_spoken_delay(delay)}")
+        self._display.show_delayed_notice(key)
+        time.sleep(config.settings.delay_notice_seconds)
 
     def _schedule_dim(self) -> None:
         self._cancel_dim()
@@ -184,16 +187,14 @@ def generate_icons() -> dict[str, bytes]:
 
 def generate_countdowns() -> dict[str, bytes]:
     durations = orc.fetch_durations()
-    named: dict[int, Button | Routine] = {**config.buttons, **config.routines}
+    named = {key: button.display_name for key, button in config.buttons.items()}
+    named |= {key: routine.orc_id for key, routine in config.routines.items()}
     out: dict[str, bytes] = {}
     for key, name in countdown_targets():
         if key not in named:
             seconds = PRESENCE_DURATION
         else:
-            display = named[key].display_name
-            if display not in durations:
-                print(f"no duration for {display!r} — countdown will be a single frame", file=sys.stderr)
-            seconds = durations.get(display, 0)
+            seconds = durations.get(named[key], 0)
         buf = io.BytesIO()
         save_countdown(seconds, buf)
         out[name] = buf.getvalue()
@@ -271,7 +272,7 @@ def build_dispatch() -> dict[int, Dispatch]:
         key: Dispatch(gifs[key], partial(orc.call_room, b.display_name, b.action), b.display_name) for key, b in config.buttons.items()
     }
     routines = {
-        key: Dispatch(gifs[key], partial(orc.call_routine, r.orc_id or r.display_name, r.display_name), r.orc_id or r.display_name)
+        key: Dispatch(gifs[key], partial(orc.call_routine, r.orc_id, r.display_name), r.display_name, r.orc_id)
         for key, r in config.routines.items()
     }
     return presence | rooms | routines
@@ -419,6 +420,16 @@ def _named() -> list[tuple[str, str]]:
             except ValueError:
                 pass
     return out
+
+
+def _spoken_delay(delta: timedelta) -> str:
+    minutes, seconds = divmod(int(delta.total_seconds()), 60)
+    parts = []
+    if minutes:
+        parts.append(f"{minutes} minute{'s' if minutes != 1 else ''}")
+    if seconds or not parts:
+        parts.append(f"{seconds} second{'s' if seconds != 1 else ''}")
+    return " and ".join(parts)
 
 
 def _png(image: Image.Image) -> bytes:

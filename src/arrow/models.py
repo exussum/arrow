@@ -20,7 +20,7 @@ class Button:
 class Routine:
     slug: str
     display_name: str
-    orc_id: str | None = None
+    orc_id: str
 
 
 @dataclass(frozen=True)
@@ -29,4 +29,4 @@ class Other:
     display_name: str
 
 
-Dispatch = namedtuple("Dispatch", ["gif", "action", "name"], defaults=[None])
+Dispatch = namedtuple("Dispatch", ["gif", "action", "label", "delay_key"], defaults=[None, None])

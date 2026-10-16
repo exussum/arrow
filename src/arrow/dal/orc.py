@@ -10,12 +10,10 @@ from arrow.config import config
 
 
 def call_room(room: str, state: str) -> None:
-    _announce_delay(room, room)
     _send(_url(f"/api/room/{quote(room)}?state={quote(state)}"), f"{room} {state}")
 
 
 def call_routine(routine: str, name: str) -> None:
-    _announce_delay(routine, name)
     _send(_url(f"/api/run/{quote(routine)}"), name)
 
 
@@ -32,12 +30,12 @@ def fetch_actions() -> dict[str, Any] | None:
 
 
 def fetch_durations() -> dict[str, int]:
-    data = _fetch("/api/durations", "durations") or {}
-    return {name: int(sample["avg"]) for name, sample in data.items()}
+    return {name: int(entry["avg"]) for name, entry in _timings().items()}
 
 
 def get_delay(name: str) -> timedelta | None:
-    return _delays().get(name)
+    entry = _timings().get(name)
+    return _parse_delay(entry["delay"]) if entry else None
 
 
 def _url(path: str) -> str:
@@ -64,26 +62,11 @@ def _fetch(path: str, label: str) -> Any | None:
 
 
 @functools.cache
-def _delays() -> dict[str, timedelta]:
-    data = _fetch("/api/durations", "durations") or {}
-    return {name: _parse_delay(entry["delay"]) for name, entry in data.items()}
+def _timings() -> dict[str, dict[str, Any]]:
+    actions = fetch_actions() or {}
+    return {**actions.get("rooms", {}), **actions.get("routines", {}), **actions.get("plugins", {})}
 
 
 def _parse_delay(value: str) -> timedelta:
     hours, minutes, seconds = value.split(":")
     return timedelta(hours=int(hours), minutes=int(minutes), seconds=float(seconds))
-
-
-def _announce_delay(routine: str, name: str) -> None:
-    if delay := get_delay(routine):
-        call_announce(f"{name} routine will go off in {_format_delay(delay)}")
-
-
-def _format_delay(delta: timedelta) -> str:
-    minutes, seconds = divmod(int(delta.total_seconds()), 60)
-    parts = []
-    if minutes:
-        parts.append(f"{minutes} minute{'s' if minutes != 1 else ''}")
-    if seconds or not parts:
-        parts.append(f"{seconds} second{'s' if seconds != 1 else ''}")
-    return " and ".join(parts)

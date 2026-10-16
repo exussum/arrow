@@ -68,6 +68,21 @@ def uploaded(deck):
     return [native for _, native in deck.key_images]
 
 
+@pytest.mark.parametrize(
+    ("seconds", "expected"),
+    (
+        (0, "0 seconds"),
+        (1, "1 second"),
+        (45, "45 seconds"),
+        (60, "1 minute"),
+        (90, "1 minute and 30 seconds"),
+        (120, "2 minutes"),
+    ),
+)
+def test_spoken_delay(seconds, expected):
+    assert api._spoken_delay(timedelta(seconds=seconds)) == expected
+
+
 class TestOnKeyChange:
     def test_ignores_release(self, make_manager):
         manager, deck = make_manager()
@@ -149,25 +164,26 @@ class TestRun:
 
     def test_shows_delayed_notice_when_delay_present(self, make_manager, monkeypatch):
         manager, deck = make_manager(brightness=config.settings.active_brightness)
-        monkeypatch.setattr(orc, "get_delay", lambda name: timedelta(minutes=3))
-        sleeps = []
+        monkeypatch.setattr(orc, "get_delay", lambda key: timedelta(minutes=3))
+        sleeps, announced, calls = [], [], []
         monkeypatch.setattr(api.time, "sleep", sleeps.append)
-        calls = []
-        manager._run(0, GIF, lambda: calls.append(0), name="Goodnight")
+        monkeypatch.setattr(orc, "call_announce", announced.append)
+        manager._run(0, GIF, lambda: calls.append(0), "Goodnight", "AD_HOC_GOODNIGHT")
         assert deck.key_images[0] == (0, DELAYED)
+        assert announced == ["Goodnight routine will go off in 3 minutes"]
         assert sleeps == [config.settings.delay_notice_seconds]
         assert calls == [0]
 
     def test_no_delayed_notice_when_no_delay(self, make_manager, monkeypatch):
         manager, deck = make_manager(brightness=config.settings.active_brightness)
-        monkeypatch.setattr(orc, "get_delay", lambda name: None)
-        manager._run(0, GIF, lambda: None, name="Goodnight")
+        monkeypatch.setattr(orc, "get_delay", lambda key: None)
+        manager._run(0, GIF, lambda: None, "Goodnight", "AD_HOC_GOODNIGHT")
         assert DELAYED not in uploaded(deck)
 
-    def test_no_delayed_notice_when_name_is_none(self, make_manager, monkeypatch):
+    def test_no_delayed_notice_without_a_delay_key(self, make_manager, monkeypatch):
         manager, deck = make_manager(brightness=config.settings.active_brightness)
         checked = []
-        monkeypatch.setattr(orc, "get_delay", lambda name: checked.append(name) or timedelta(minutes=1))
+        monkeypatch.setattr(orc, "get_delay", lambda key: checked.append(key) or timedelta(minutes=1))
         manager._run(0, GIF, lambda: None)
         assert checked == []
         assert DELAYED not in uploaded(deck)
