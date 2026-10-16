@@ -1,6 +1,5 @@
 import threading
 from datetime import timedelta
-from pathlib import Path
 
 import pytest
 
@@ -11,7 +10,7 @@ from arrow.dal import orc
 from arrow.dal.streamdeck import DisplayManager, ImageManager
 from arrow.models import Dispatch
 
-GIF = Path("/fake/countdown.gif")
+GIF = "countdowns/routines/fake.gif"
 KEYS = (0, config.key_of("help"))
 ICON = b"icon"
 LABEL = b"label"

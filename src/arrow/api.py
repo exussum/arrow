@@ -11,7 +11,7 @@ from typing import IO
 
 from PIL import Image, ImageDraw, ImageEnhance, ImageFont, ImageMath
 
-from arrow.config import ICONS_DIR, config, countdown_targets, icon_targets
+from arrow.config import config, countdown_targets, icon_targets
 from arrow.dal import orc, streamdeck
 from arrow.loader import Art, Icon
 from arrow.models import Button, Dispatch, IconMode, Routine
@@ -56,8 +56,7 @@ class DeckManager:
     def build_manager(cls, brightness: int) -> "DeckManager":
         deck = streamdeck.open_deck()
         try:
-            gif_paths = [path for _, path in countdown_targets()]
-            cache = streamdeck.ImageManager.build(deck, gif_paths)
+            cache = streamdeck.ImageManager.build(deck)
         except Exception:
             deck.close()
             raise
@@ -95,12 +94,12 @@ class DeckManager:
         else:
             print(f"button {key} unmapped", file=sys.stderr)
 
-    def _run(self, key: int, gif_path: Path, action: Callable[[], object], name: str | None = None) -> None:
+    def _run(self, key: int, gif: str, action: Callable[[], object], name: str | None = None) -> None:
         self._notify_delay(key, name)
         done = threading.Event()
         animator = threading.Thread(
             target=self._display.play_countdown,
-            args=(key, gif_path, done),
+            args=(key, gif, done),
             daemon=True,
         )
         animator.start()
@@ -140,13 +139,35 @@ class DeckManager:
             self._dim_timer = None
 
 
-def package(argv: list[str]) -> int:
-    source, out = (argv[0] if argv else None), Path(argv[1] if len(argv) > 1 else "icons.zip")
-    config.load(source)
-    members = build()
-    write_zip(members, out)
-    print(f"{out}: {len(members)} files, {out.stat().st_size // 1024} KiB")
-    return 0
+def check() -> list[str]:
+    return missing_files() + against_orc()
+
+
+def missing_files() -> list[str]:
+    if not config.icons.exists():
+        return [f"missing {config.icons} — run arrow package"]
+    wanted = [name for _, name in icon_targets(label=False) + icon_targets(label=True) + countdown_targets()]
+    wanted.append("delayed.png")
+    with zipfile.ZipFile(config.icons) as archive:
+        held = set(archive.namelist())
+    return [f"{config.icons.name} has no {name} — run arrow package" for name in dict.fromkeys(wanted) if name not in held]
+
+
+def against_orc() -> list[str]:
+    actions = orc.fetch_actions()
+    if not actions:
+        return []
+
+    problems = []
+    for room in dict.fromkeys(button.display_name for button in config.buttons.values()):
+        if room not in actions["rooms"]:
+            problems.append(f"room {room!r} is not a room in orc")
+    for routine in config.routines.values():
+        if routine.orc_id not in actions["routines"] and routine.orc_id not in actions["plugins"]:
+            problems.append(f"{routine.slug}: orc has no action {routine.orc_id!r}")
+    if config.settings.presence_name not in actions["people"]:
+        problems.append(f"presence_name {config.settings.presence_name!r} is not a person in orc")
+    return problems
 
 
 def build() -> dict[str, bytes]:
@@ -155,8 +176,8 @@ def build() -> dict[str, bytes]:
 
 def generate_icons() -> dict[str, bytes]:
     calibrate([icon.char for art in config.art.values() for icon in (*art.icons, *filter(None, (art.badge,)))])
-    out = {_name(path): _png(compose(config.art[art_key(key)])) for key, path in icon_targets(label=False)}
-    out |= {_name(path): _png(multiline_frame(label_lines(key), LABEL_FONT_SIZE)) for key, path in icon_targets(label=True)}
+    out = {name: _png(compose(config.art[art_key(key)])) for key, name in icon_targets(label=False)}
+    out |= {name: _png(multiline_frame(label_lines(key), LABEL_FONT_SIZE)) for key, name in icon_targets(label=True)}
     out["delayed.png"] = _png(multiline_frame(DELAYED_LINES, WAITING_FONT_SIZE))
     return out
 
@@ -165,7 +186,7 @@ def generate_countdowns() -> dict[str, bytes]:
     durations = orc.fetch_durations()
     named: dict[int, Button | Routine] = {**config.buttons, **config.routines}
     out: dict[str, bytes] = {}
-    for key, path in countdown_targets():
+    for key, name in countdown_targets():
         if key not in named:
             seconds = PRESENCE_DURATION
         else:
@@ -175,15 +196,8 @@ def generate_countdowns() -> dict[str, bytes]:
             seconds = durations.get(display, 0)
         buf = io.BytesIO()
         save_countdown(seconds, buf)
-        out[_name(path)] = buf.getvalue()
+        out[name] = buf.getvalue()
     return out
-
-
-def write_dir(members: dict[str, bytes], root: Path) -> None:
-    for name, data in members.items():
-        out = root / name
-        out.parent.mkdir(parents=True, exist_ok=True)
-        out.write_bytes(data)
 
 
 def write_zip(members: dict[str, bytes], out: Path) -> None:
@@ -247,40 +261,20 @@ def wrap_words(text: str, max_chars: int = 10) -> list[str]:
 
 
 def build_dispatch() -> dict[int, Dispatch]:
+    gifs = dict(countdown_targets())
     presence = {
-        key: Dispatch(ICONS_DIR / "countdowns" / "presence.gif", partial(orc.call_presence, config.settings.presence_name))
+        key: Dispatch(gifs[key], partial(orc.call_presence, config.settings.presence_name))
         for key, other in config.others.items()
         if other.slug == "presence"
     }
     rooms = {
-        key: Dispatch(
-            ICONS_DIR / "countdowns" / b.action / f"{b.slug}.gif",
-            partial(orc.call_room, b.display_name, b.action),
-            b.display_name,
-        )
-        for key, b in config.buttons.items()
+        key: Dispatch(gifs[key], partial(orc.call_room, b.display_name, b.action), b.display_name) for key, b in config.buttons.items()
     }
     routines = {
-        key: Dispatch(
-            ICONS_DIR / "countdowns" / "routines" / f"{r.slug}.gif",
-            partial(orc.call_routine, r.orc_id or r.display_name, r.display_name),
-            r.orc_id or r.display_name,
-        )
+        key: Dispatch(gifs[key], partial(orc.call_routine, r.orc_id or r.display_name, r.display_name), r.orc_id or r.display_name)
         for key, r in config.routines.items()
     }
     return presence | rooms | routines
-
-
-def icon_lookup(argv: list[str]) -> int:
-    if len(argv) >= 2 and argv[0] == "search":
-        for char, name in search(" ".join(argv[1:])):
-            print(f"{char}\t--icon={name}")
-        return 0
-    if len(argv) >= 2 and argv[0] == "name":
-        print(" ".join(f"--icon={to_name(c)}" for c in argv[1:]))
-        return 0
-    print("usage: arrow icons search <word> | arrow icons name <emoji>...", file=sys.stderr)
-    return 2
 
 
 def search(query: str) -> list[tuple[str, str]]:
@@ -425,10 +419,6 @@ def _named() -> list[tuple[str, str]]:
             except ValueError:
                 pass
     return out
-
-
-def _name(path: Path) -> str:
-    return str(path.relative_to(ICONS_DIR))
 
 
 def _png(image: Image.Image) -> bytes:

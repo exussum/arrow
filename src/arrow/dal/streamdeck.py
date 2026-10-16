@@ -1,16 +1,17 @@
+import io
 import random
 import threading
+import zipfile
 from collections.abc import Callable
 from dataclasses import dataclass
 from functools import wraps
-from pathlib import Path
 from typing import Any
 
 from PIL import Image
 from StreamDeck.DeviceManager import DeviceManager
 from StreamDeck.ImageHelpers import PILHelper
 
-from arrow.config import ICONS_DIR, icon_targets
+from arrow.config import config, countdown_targets, icon_targets
 from arrow.models import IconMode
 
 
@@ -18,50 +19,46 @@ from arrow.models import IconMode
 class ImageManager:
     icons: dict[int, Any]
     labels: dict[int, Any]
-    frames: dict[Path, list[Any]]
+    frames: dict[str, list[Any]]
     blank: dict[int, Any]
     delayed: dict[int, Any]
 
     @classmethod
-    def build(cls, deck: Any, gif_paths: list[Path]) -> "ImageManager":
-        return cls(
-            icons=cls._build_icon_cache(deck, label=False),
-            labels=cls._build_icon_cache(deck, label=True),
-            frames=cls._build_gif_cache(deck, gif_paths),
-            blank=cls._build_cache(deck, PILHelper.create_image(deck)),
-            delayed=cls._build_cache(deck, Image.open(ICONS_DIR / "delayed.png")),
-        )
+    def build(cls, deck: Any) -> "ImageManager":
+        with zipfile.ZipFile(config.icons) as archive:
+            return cls(
+                icons=cls._build_icon_cache(deck, archive, label=False),
+                labels=cls._build_icon_cache(deck, archive, label=True),
+                frames={name: cls._gif_frames_native(deck, archive, name) for _, name in countdown_targets()},
+                blank=cls._build_cache(deck, PILHelper.create_image(deck)),
+                delayed=cls._build_cache(deck, cls._open(archive, "delayed.png")),
+            )
 
     @classmethod
-    def _build_icon_cache(cls, deck: Any, label: bool = False) -> dict[int, Any]:
-        return {key: cls._open_native(deck, path) for key, path in icon_targets(label)}
+    def _build_icon_cache(cls, deck: Any, archive: zipfile.ZipFile, label: bool = False) -> dict[int, Any]:
+        return {key: cls._to_native(deck, cls._open(archive, name)) for key, name in icon_targets(label)}
 
     @classmethod
     def _build_cache(cls, deck: Any, image: Image.Image) -> dict[int, Any]:
         native = cls._to_native(deck, image)
         return {k: native for k in range(deck.key_count())}
 
-    @classmethod
-    def _build_gif_cache(cls, deck: Any, gif_paths: list[Path]) -> dict[Path, list[Any]]:
-        return {path: cls._gif_frames_native(deck, path) for path in gif_paths}
-
     @staticmethod
     def _to_native(deck: Any, pil_img: Image.Image) -> Any:
         scaled = PILHelper.create_scaled_image(deck, pil_img, margins=[0, 0, 0, 0])
         return PILHelper.to_native_format(deck, scaled)
 
-    @classmethod
-    def _open_native(cls, deck: Any, path: Path) -> Any:
-        with Image.open(path) as img:
-            return cls._to_native(deck, img)
+    @staticmethod
+    def _open(archive: zipfile.ZipFile, name: str) -> Image.Image:
+        return Image.open(io.BytesIO(archive.read(name)))
 
     @classmethod
-    def _gif_frames_native(cls, deck: Any, path: Path) -> list[Any]:
+    def _gif_frames_native(cls, deck: Any, archive: zipfile.ZipFile, name: str) -> list[Any]:
         frames = []
-        with Image.open(path) as img:
-            for i in range(getattr(img, "n_frames")):
-                img.seek(i)
-                frames.append(cls._to_native(deck, img.convert("RGB")))
+        img = cls._open(archive, name)
+        for i in range(getattr(img, "n_frames")):
+            img.seek(i)
+            frames.append(cls._to_native(deck, img.convert("RGB")))
         return frames
 
 
@@ -120,8 +117,8 @@ class DisplayManager:
     def show_delayed_notice(self, key: int) -> None:
         self._set_key_image(key, self._cache.delayed[key])
 
-    def play_countdown(self, key: int, gif_path: Path, done: threading.Event) -> None:
-        frames = self._cache.frames[gif_path]
+    def play_countdown(self, key: int, gif: str, done: threading.Event) -> None:
+        frames = self._cache.frames[gif]
         last = len(frames) - 1
         for i, native in enumerate(frames):
             self._set_key_image(key, native)

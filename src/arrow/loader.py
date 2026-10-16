@@ -155,9 +155,8 @@ def parse(text: str) -> Parsed:
     )
 
 
-def read(path: str | Path | None = None) -> Parsed:
-    source = Path(path or os.getenv("ARROW_CONFIG") or CONFIG_PATH)
-    return parse(source.read_text())
+def source(path: str | Path | None = None) -> Path:
+    return Path(path or os.getenv("ARROW_CONFIG") or CONFIG_PATH)
 
 
 def _as_int(value: str, _objects: object = None) -> int:

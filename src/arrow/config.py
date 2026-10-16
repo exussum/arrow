@@ -7,7 +7,7 @@ from command_cfg import ConfigError
 from arrow import loader
 from arrow.loader import Parsed
 
-ICONS_DIR = Path(__file__).resolve().parent / "icons"
+ICONS_ZIP = "icons.zip"
 
 
 class ConfigNotLoadedError(AttributeError):
@@ -18,8 +18,10 @@ class Config:
     def __getattr__(self, name: str) -> Any:
         raise ConfigNotLoadedError(f"arrow config not loaded (reading {name!r}): the entry point must call config.load() first")
 
-    def load(self, path: str | Path | None = None) -> None:
-        self._install(loader.read(path))
+    def load(self, path: str | Path | None = None, icons: str | Path | None = None) -> None:
+        self.source = loader.source(path)
+        self.icons = Path(icons) if icons else self.source.parent / ICONS_ZIP
+        self._install(loader.parse(self.source.read_text()))
 
     def _install(self, parsed: Parsed) -> None:
         self.settings = parsed.settings
@@ -39,23 +41,22 @@ class Config:
 config = Config()
 
 
-def icon_targets(label: bool = False) -> list[tuple[int, Path]]:
-    base = ICONS_DIR / "labels" if label else ICONS_DIR
+def icon_targets(label: bool = False) -> list[tuple[int, str]]:
+    base = "labels/" if label else ""
     return list(
         chain(
-            ((key, base / button.action / f"{button.slug}.png") for key, button in config.buttons.items()),
-            ((key, base / "routines" / f"{routine.slug}.png") for key, routine in config.routines.items()),
-            ((key, base / f"{other.slug}.png") for key, other in config.others.items()),
+            ((key, f"{base}{button.action}/{button.slug}.png") for key, button in config.buttons.items()),
+            ((key, f"{base}routines/{routine.slug}.png") for key, routine in config.routines.items()),
+            ((key, f"{base}{other.slug}.png") for key, other in config.others.items()),
         )
     )
 
 
-def countdown_targets() -> list[tuple[int, Path]]:
-    base = ICONS_DIR / "countdowns"
+def countdown_targets() -> list[tuple[int, str]]:
     return list(
         chain(
-            ((key, base / "presence.gif") for key, other in config.others.items() if other.slug == "presence"),
-            ((key, base / button.action / f"{button.slug}.gif") for key, button in config.buttons.items()),
-            ((key, base / "routines" / f"{routine.slug}.gif") for key, routine in config.routines.items()),
+            ((key, "countdowns/presence.gif") for key, other in config.others.items() if other.slug == "presence"),
+            ((key, f"countdowns/{button.action}/{button.slug}.gif") for key, button in config.buttons.items()),
+            ((key, f"countdowns/routines/{routine.slug}.gif") for key, routine in config.routines.items()),
         )
     )

@@ -1,17 +1,22 @@
+import argparse
 import sys
 import threading
+from pathlib import Path
 
-from arrow import api, arrow
+from arrow import api
 from arrow.config import config
-
-COMMANDS = {"icons": api.icon_lookup, "check": arrow.check, "package": api.package}
 
 
 def main() -> None:
-    if command := COMMANDS.get(sys.argv[1] if sys.argv[1:] else ""):
-        sys.exit(command(sys.argv[2:]))
+    args = _parse_args(sys.argv[1:])
+    if args.command == "icons":
+        sys.exit(_icons(args.action, args.words))
 
-    config.load()
+    config.load(args.config, args.icons)
+    if args.command == "check":
+        sys.exit(_check())
+    if args.command == "package":
+        sys.exit(_package(Path(args.out) if args.out else config.icons))
 
     print("opening streamdeck", file=sys.stderr)
     manager = api.DeckManager.build_manager(brightness=config.settings.dim_brightness)
@@ -23,6 +28,47 @@ def main() -> None:
         pass
     finally:
         manager.shutdown()
+
+
+def _icons(action: str, words: list[str]) -> int:
+    if action == "search":
+        for char, name in api.search(" ".join(words)):
+            print(f"{char}\t--icon={name}")
+    else:
+        print(" ".join(f"--icon={api.to_name(word)}" for word in words))
+    return 0
+
+
+def _check() -> int:
+    problems = api.check()
+    for problem in problems:
+        print(problem, file=sys.stderr)
+    print(f"{len(config.buttons) + len(config.routines) + len(config.others)} buttons, {len(problems)} problems")
+    return 1 if problems else 0
+
+
+def _package(out: Path) -> int:
+    members = api.build()
+    api.write_zip(members, out)
+    print(f"{out}: {len(members)} files, {out.stat().st_size // 1024} KiB")
+    return 0
+
+
+def _parse_args(argv: list[str]) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(prog="arrow", description="Stream Deck client for orc")
+    parser.add_argument("--config", help="config.arrow to load (default: $ARROW_CONFIG, else the packaged one)")
+    parser.add_argument("--icons", help="icons.zip to read (default: beside the config)")
+    commands = parser.add_subparsers(dest="command")
+
+    commands.add_parser("check", help="check the config against the icons and orc")
+
+    package = commands.add_parser("package", help="generate the icons into a zip")
+    package.add_argument("out", nargs="?", help="where to write it (default: --icons)")
+
+    icons = commands.add_parser("icons", help="look up emoji names")
+    icons.add_argument("action", choices=("search", "name"))
+    icons.add_argument("words", nargs="+")
+    return parser.parse_args(argv)
 
 
 if __name__ == "__main__":
