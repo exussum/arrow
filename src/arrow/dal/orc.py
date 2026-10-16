@@ -2,7 +2,7 @@ import functools
 import sys
 from datetime import timedelta
 from typing import Any
-from urllib.parse import quote
+from urllib.parse import quote, urljoin
 
 import requests
 
@@ -39,7 +39,7 @@ def get_delay(name: str) -> timedelta | None:
 
 
 def _url(path: str) -> str:
-    return f"{config.settings.orc_base_url}{path}"
+    return urljoin(config.settings.orc_base_url, path)
 
 
 def _send(url: str, label: str, data: dict[str, str] | None = None) -> None:

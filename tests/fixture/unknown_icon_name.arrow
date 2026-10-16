@@ -11,6 +11,8 @@ routine single  nap    Nap      not-an-emoji
 routine pair    reset  Reset    electric-light-bulb:dim speaker-with-cancellation-stroke --orc-id=ROUTINE_RESET
 routine caption lights 'Lights' electric-light-bulb     'All lights'
 
-other help Help black-question-mark-ornament
+other help     Help       black-question-mark-ornament
+other presence 'Check In' happy-person-raising-one-hand
 
-button nap 4
+button presence 7
+button help 31

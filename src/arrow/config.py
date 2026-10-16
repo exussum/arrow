@@ -2,8 +2,6 @@ from itertools import chain
 from pathlib import Path
 from typing import Any
 
-from command_cfg import ConfigError
-
 from arrow import loader
 from arrow.loader import Parsed
 
@@ -30,12 +28,8 @@ class Config:
         self.routines = parsed.routines
         self.others = parsed.others
         self.art = parsed.art
-
-    def key_of(self, slug: str) -> int:
-        for key, other in self.others.items():
-            if other.slug == slug:
-                return key
-        raise ConfigError(f"no button declared for {slug!r}")
+        self.help_key = parsed.reserved["help"]
+        self.presence_key = parsed.reserved["presence"]
 
 
 config = Config()
@@ -55,7 +49,7 @@ def icon_targets(label: bool = False) -> list[tuple[int, str]]:
 def countdown_targets() -> list[tuple[int, str]]:
     return list(
         chain(
-            ((key, "countdowns/presence.gif") for key, other in config.others.items() if other.slug == "presence"),
+            ((config.presence_key, "countdowns/presence.gif"),),
             ((key, f"countdowns/{button.action}/{button.slug}.gif") for key, button in config.buttons.items()),
             ((key, f"countdowns/routines/{routine.slug}.gif") for key, routine in config.routines.items()),
         )

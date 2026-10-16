@@ -16,6 +16,7 @@ FILTERS = ("dim", "invert")
 LAYOUTS = ("single", "pair", "caption", "marked")
 
 AD_HOC_PREFIX = "AD_HOC_"
+RESERVED = ("help", "presence")
 
 GRAMMAR = """
 setting <key> <value>
@@ -115,10 +116,12 @@ class Keys(NamedTuple):
     buttons: dict[int, Button]
     routines: dict[int, Routine]
     others: dict[int, Other]
+    reserved: dict[str, int]
 
 
 class Parsed(NamedTuple):
     settings: Settings
+    reserved: dict[str, int]
     badges: dict[str, Icon]
     buttons: dict[int, Button]
     routines: dict[int, Routine]
@@ -151,6 +154,7 @@ def parse(text: str) -> Parsed:
     keys = _keys(objects["button"], rooms, routines, others)
     return Parsed(
         settings=objects["setting"],
+        reserved=keys.reserved,
         badges=badges,
         buttons=keys.buttons,
         routines=keys.routines,
@@ -232,4 +236,8 @@ def _keys(
             other_keys[row.key] = Other(row.slug, other.name)
         else:
             raise ConfigError(f"button {row.slug!r} matches no room, routine or other")
-    return Keys(buttons, routine_keys, other_keys)
+
+    reserved = {slug: key for key, other in other_keys.items() for slug in RESERVED if other.slug == slug}
+    if undeclared := [slug for slug in RESERVED if slug not in reserved]:
+        raise ConfigError(f"no button line for reserved slug(s): {', '.join(undeclared)}")
+    return Keys(buttons, routine_keys, other_keys, reserved)

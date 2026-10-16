@@ -38,6 +38,7 @@ PROCESSING_FONT_SIZE = 18
 LABEL_FONT_SIZE = 26
 PRESENCE_DURATION = 1
 
+# the blocks emoji live in, loose at both ends: a search hit may be a glyph the font cannot draw
 RANGES = ((0x2190, 0x33FF), (0x1F000, 0x1FAFF))
 
 
@@ -85,7 +86,7 @@ class DeckManager:
         elif self._brightness == config.settings.dim_brightness:
             self.set_brightness(config.settings.active_brightness)
             self._schedule_dim()
-        elif key == config.key_of("help"):
+        elif key == config.help_key:
             self._display.toggle_labels()
             self._schedule_dim()
         elif entry := self._dispatch.get(key):
@@ -259,11 +260,7 @@ def wrap_words(text: str, max_chars: int = 10) -> list[str]:
 
 def build_dispatch() -> dict[int, Dispatch]:
     gifs = dict(countdown_targets())
-    presence = {
-        key: Dispatch(gifs[key], partial(orc.call_presence, config.settings.presence_name))
-        for key, other in config.others.items()
-        if other.slug == "presence"
-    }
+    presence = {config.presence_key: Dispatch(gifs[config.presence_key], partial(orc.call_presence, config.settings.presence_name))}
     rooms = {
         key: Dispatch(gifs[key], partial(orc.call_room, b.display_name, b.action), b.display_name) for key, b in config.buttons.items()
     }

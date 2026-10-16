@@ -11,7 +11,7 @@ from arrow.dal.streamdeck import DisplayManager, ImageManager
 from arrow.models import Dispatch
 
 GIF = "countdowns/routines/fake.gif"
-KEYS = (0, config.key_of("help"))
+KEYS = (0, config.help_key)
 ICON = b"icon"
 LABEL = b"label"
 BLANK = b"blank"
@@ -98,7 +98,7 @@ class TestOnKeyChange:
 
     def test_help_key_toggles_labels(self, make_manager):
         manager, deck = make_manager(brightness=config.settings.active_brightness)
-        manager.on_key_change(config.key_of("help"), pressed=True)
+        manager.on_key_change(config.help_key, pressed=True)
         assert uploaded(deck) == [LABEL] * len(KEYS)
 
     def test_dispatched_key_blanks_and_restores(self, make_manager):

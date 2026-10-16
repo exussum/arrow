@@ -16,6 +16,7 @@ def parsed(name: str = "base"):
     ("fixture", "expected"),
     (
         ("duplicate_key", "key 4 is claimed twice"),
+        ("missing_reserved", "reserved slug"),
         ("unknown_button_slug", "matches no room, routine or other"),
         ("room_without_state", "needs one of"),
         ("non_room_with_state", "takes no action"),

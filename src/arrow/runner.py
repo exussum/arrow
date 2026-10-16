@@ -6,6 +6,8 @@ from pathlib import Path
 from arrow import api
 from arrow.config import config
 
+SEPARATOR = "-----"
+
 
 def main() -> None:
     args = _parse_args(sys.argv[1:])
@@ -31,11 +33,15 @@ def main() -> None:
 
 
 def _icons(action: str, words: list[str]) -> int:
+    print(SEPARATOR)
     if action == "search":
-        for char, name in api.search_icons(" ".join(words)):
-            print(f"{char}\t--icon={name}")
+        for word in words:
+            for char, name in api.search_icons(word):
+                print(f"{char}\t--icon={name}")
+            print(SEPARATOR)
     else:
         print(" ".join(f"--icon={api.icon_name(word)}" for word in words))
+        print(SEPARATOR)
     return 0
 
 
