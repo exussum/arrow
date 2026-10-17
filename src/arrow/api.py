@@ -37,6 +37,7 @@ PROCESSING_TEXT = "processing..."
 PROCESSING_FONT_SIZE = 18
 LABEL_FONT_SIZE = 26
 PRESENCE_DURATION = 1
+EPOCH = (1980, 1, 1, 0, 0, 0)
 
 # the blocks emoji live in, loose at both ends: a search hit may be a glyph the font cannot draw
 RANGES = ((0x2190, 0x33FF), (0x1F000, 0x1FAFF))
@@ -197,7 +198,9 @@ def generate_countdowns() -> dict[str, bytes]:
 def write_zip(members: dict[str, bytes], out: Path) -> None:
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
         for name, data in members.items():
-            z.writestr(name, data)
+            member = zipfile.ZipInfo(name, date_time=EPOCH)
+            member.compress_type = zipfile.ZIP_DEFLATED
+            z.writestr(member, data)
 
 
 def compose(art: Art) -> Image.Image:
