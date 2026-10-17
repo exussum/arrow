@@ -51,7 +51,7 @@ test = [
 
 [package.metadata]
 requires-dist = [
-    { name = "command-cfg", git = "https://github.com/exussum/command-cfg?tag=v1.1.0" },
+    { name = "command-cfg", git = "https://github.com/exussum/command-cfg?tag=v1.1.1" },
     { name = "mypy", marker = "extra == 'lint'", specifier = "==2.3.0" },
     { name = "pillow", specifier = "==12.3.0" },
     { name = "pip-audit", marker = "extra == 'lint'", specifier = "==2.10.1" },
@@ -296,8 +296,8 @@ wheels = [
 
 [[package]]
 name = "command-cfg"
-version = "1.1.0"
-source = { git = "https://github.com/exussum/command-cfg?tag=v1.1.0#ebeac4d4aae638d3e2ffde5a91f70db771b06bdf" }
+version = "1.1.1"
+source = { git = "https://github.com/exussum/command-cfg?tag=v1.1.1#cdd22774a4afdc61dbe1b75647b3e0e9cd05fa20" }
 dependencies = [
     { name = "lark" },
 ]

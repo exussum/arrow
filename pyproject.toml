@@ -7,7 +7,7 @@ requires = [
 [project]
 dependencies = [
     "Pillow==12.3.0",
-    "command-cfg==1.1.0",
+    "command-cfg==1.1.1",
     "requests==2.33.0",
     "streamdeck==0.9.8",
 ]
@@ -29,7 +29,7 @@ lint = [
 arrow = "arrow.runner:main"
 
 [tool.uv.sources]
-command-cfg = { git = "https://github.com/exussum/command-cfg", tag = "v1.1.0" }
+command-cfg = { git = "https://github.com/exussum/command-cfg", tag = "v1.1.1" }
 
 [tool.ruff]
 line-length = 140
