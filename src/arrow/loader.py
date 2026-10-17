@@ -9,8 +9,6 @@ from command_cfg import ConfigError, array, scalar
 
 from arrow.models import Button, Other, Routine
 
-CONFIG_PATH = Path(__file__).resolve().parent / "config.arrow"
-
 ACTIONS = ("on", "off", "follow")
 FILTERS = ("dim", "invert")
 LAYOUTS = ("single", "pair", "caption", "marked")
@@ -164,7 +162,9 @@ def parse(text: str) -> Parsed:
 
 
 def source(path: str | Path | None = None) -> Path:
-    return Path(path or os.getenv("ARROW_CONFIG") or CONFIG_PATH)
+    if found := path or os.getenv("ARROW_CONFIG"):
+        return Path(found)
+    raise ConfigError("no config: pass --config or set ARROW_CONFIG")
 
 
 def _icon(spec: str) -> Icon:

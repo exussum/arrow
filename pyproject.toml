@@ -59,5 +59,4 @@ include = [
     "src/arrow/**/*.py",
     "src/arrow/fonts/*.ttf",
     "src/arrow/fonts/LICENSE-*.txt",
-    "src/arrow/config.arrow",
 ]

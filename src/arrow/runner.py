@@ -15,10 +15,15 @@ def main() -> None:
         sys.exit(_icons(args.action, args.words))
 
     config.load(args.config, args.icons)
-    if args.command == "check":
-        sys.exit(_check())
     if args.command == "package":
         sys.exit(_package(Path(args.out) if args.out else config.icons))
+
+    if missing := api.missing_files():
+        for problem in missing:
+            print(problem, file=sys.stderr)
+        sys.exit(1)
+    for problem in api.unknown_actions():
+        print(problem, file=sys.stderr)
 
     print("opening streamdeck", file=sys.stderr)
     manager = api.DeckManager.build_manager(brightness=config.settings.dim_brightness)
@@ -45,14 +50,6 @@ def _icons(action: str, words: list[str]) -> int:
     return 0
 
 
-def _check() -> int:
-    problems = api.missing_files() + api.unknown_actions()
-    for problem in problems:
-        print(problem, file=sys.stderr)
-    print(f"{len(config.buttons) + len(config.routines) + len(config.others)} buttons, {len(problems)} problems")
-    return 1 if problems else 0
-
-
 def _package(out: Path) -> int:
     members = api.generate_icons() | api.generate_countdowns()
     api.write_zip(members, out)
@@ -61,17 +58,19 @@ def _package(out: Path) -> int:
 
 
 def _parse_args(argv: list[str]) -> argparse.Namespace:
+    common = argparse.ArgumentParser(add_help=False)
+    common.add_argument("--config", default=argparse.SUPPRESS, help="config.arrow to load (default: $ARROW_CONFIG)")
+    common.add_argument("--icons", default=argparse.SUPPRESS, help="icons.zip to read (default: beside the config)")
+
     parser = argparse.ArgumentParser(prog="arrow", description="Stream Deck client for orc")
-    parser.add_argument("--config", help="config.arrow to load (default: $ARROW_CONFIG, else the packaged one)")
+    parser.add_argument("--config", help="config.arrow to load (default: $ARROW_CONFIG)")
     parser.add_argument("--icons", help="icons.zip to read (default: beside the config)")
     commands = parser.add_subparsers(dest="command")
 
-    commands.add_parser("check", help="check the config against the icons and orc")
-
-    package = commands.add_parser("package", help="generate the icons into a zip")
+    package = commands.add_parser("package", parents=[common], help="generate the icons into a zip")
     package.add_argument("out", nargs="?", help="where to write it (default: --icons)")
 
-    icons = commands.add_parser("icons", help="look up emoji names")
+    icons = commands.add_parser("icons", parents=[common], help="look up emoji names")
     icons.add_argument("action", choices=("search", "name"))
     icons.add_argument("words", nargs="+")
     return parser.parse_args(argv)
