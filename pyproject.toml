@@ -6,7 +6,7 @@ requires = [
 
 [project]
 dependencies = [
-    "Pillow==12.3.0",
+    "Pillow==13.0.0",
     "command-cfg==1.1.1",
     "requests==2.33.0",
     "streamdeck==0.9.8",
