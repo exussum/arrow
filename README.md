@@ -1,29 +1,57 @@
 # arrow
 
-A daemon that turns an Elgato Stream Deck into a control panel for
-[orc](https://github.com/exussum/orc), a home automation orchestrator. Key
-presses become HTTP calls against orc; the deck dims when idle and wakes on the
+arrow turns an Elgato Stream Deck into a control panel for
+[orc](https://github.com/exussum/orc), a home automation orchestrator. A key
+press becomes an HTTP call to orc; the deck dims when idle and wakes on the
 next press.
 
-Everything on the deck — which key does what, which emoji it shows, which orc
-action it calls — comes from one config file. The icons are generated from that
-config, not drawn by hand.
+Everything on the deck comes from one config file: which key does what,
+which emoji it shows, and which orc action it calls. arrow generates the
+icons from that file, so there is nothing to draw.
 
 ## What it does
 
 - Uploads an icon to every configured key and listens for presses.
 - Calls orc: `/api/room/{room}?state=` for room keys, `/api/run/{id}` for
-  routines, `/api/presence/{name}/checkin` for the check-in key.
-- Plays a countdown GIF on the pressed key while the call is in flight, sized
+  routines, and `/api/presence/{name}/checkin` for the check-in key.
+- Plays a countdown on the pressed key while the call is in flight, sized
   from orc's own measured average for that action.
 - Announces and flags actions orc will delay, through `/api/announce`.
 - Toggles label overlays on the help key, so you can see what each key does.
-- Starts dim, wakes on the first press, and re-dims after an idle timeout.
+- Starts dim, wakes on the first press, and dims again after an idle
+  timeout.
+
+## Install and run
+
+You need:
+
+- Python 3.14 and [uv](https://docs.astral.sh/uv/).
+- A Stream Deck on USB. The `streamdeck` library needs hidapi on the host:
+  `brew install hidapi` on macOS, or `sudo apt-get install libhidapi-libusb0`
+  on Debian and Ubuntu.
+- An orc you can reach over HTTP. `arrow package` reads orc's `/api/actions`
+  for the countdown lengths.
+
+Install arrow, generate the icons, and start the daemon. The example config
+in [`examples/config.arrow`](examples/config.arrow) is complete; copy it and
+point `orc_base_url` at your orc.
+
+```sh
+git clone https://github.com/exussum/arrow.git && cd arrow
+uv sync
+uv run arrow package --config /etc/arrow/config.arrow   # writes /etc/arrow/icons.zip
+uv run arrow --config /etc/arrow/config.arrow
+```
+
+Point arrow at the file with `--config` or `ARROW_CONFIG`. The generated
+`icons.zip` lives beside it. On startup the daemon refuses to run if the
+zip is missing anything it needs, and reports, without stopping, any room,
+routine, or person that orc doesn't know. The fonts it renders with are
+bundled, so it needs nothing else installed.
 
 ## Configure
 
-A config file declares the deck. Each line is a command; see
-[`examples/config.arrow`](examples/config.arrow) for a complete one.
+Each line of the config is a command:
 
 ```
 setting orc_base_url  ${ARROW_ORC_URL:-https://orc.exussum.example}
@@ -47,51 +75,35 @@ button presence    7
 button help       31
 ```
 
-- **`room`** expands to three keys. The orc state supplies the badge, the label
-  suffix and the `?state=` value, so a room needs one `button` line per state.
-- **`routine`** takes a layout word that fixes what follows: `single` (one
-  icon), `pair` (two icons, opposite corners), `caption` (icon plus text),
-  `marked` (icon plus badge).
-- **`--orc-id`** defaults to `AD_HOC_<SLUG>`. Name it explicitly for anything
-  that breaks the convention, including orc plugin names.
+- A **`room`** line expands to three keys, one per orc state (`on`, `off`,
+  `follow`). The state supplies the badge, the label suffix, and the
+  `?state=` value, so a room needs one `button` line per state.
+- A **`routine`** line takes a layout word that fixes what follows:
+  `single` (one icon), `pair` (two icons, opposite corners), `caption`
+  (icon plus text), or `marked` (icon plus badge).
+- **`--orc-id`** defaults to `AD_HOC_<SLUG>`. Name it explicitly for
+  anything that breaks the convention, including orc plugin names.
 - **Icons** are Unicode character names, lowercased and hyphenated. Append
-  `:dim` or `:invert` to filter one glyph.
-- **`help` and `presence`** are reserved: both need an `other` line and a
-  `button` line.
-
-Point arrow at the file with `--config` or `ARROW_CONFIG`. The generated
-`icons.zip` lives beside it.
-
-## Install and run
-
-Requires Python 3.14 and a Stream Deck on USB. The `streamdeck` library needs
-hidapi on the host.
-
-```sh
-pip install .
-arrow package --config /etc/arrow/config.arrow   # writes /etc/arrow/icons.zip
-arrow --config /etc/arrow/config.arrow
-```
-
-On startup the daemon refuses to run if the zip is missing anything it needs,
-and reports — without stopping — any room, routine or person orc doesn't know.
-
-`arrow package` reads orc's `/api/actions` for countdown lengths, so run it
-somewhere orc is reachable. The fonts it renders with are bundled, so it needs
-nothing else installed.
+  `:dim` or `:invert` to filter one glyph. `arrow icons search` finds a
+  name; `arrow icons name` converts a pasted emoji.
+- **`help`** and **`presence`** are reserved: each needs an `other` line
+  and a `button` line.
 
 ## Commands
 
-| Command | Does |
-| --- | --- |
-| `arrow` | Run the daemon |
-| `arrow package [out]` | Generate the icons into a zip |
-| `arrow icons search WORD...` | Find an emoji name for the config |
-| `arrow icons name EMOJI...` | Convert pasted emoji to config names |
+| Command                      | Does                                 |
+| ---------------------------- | ------------------------------------ |
+| `arrow`                      | Run the daemon                       |
+| `arrow package [out]`        | Generate the icons into a zip        |
+| `arrow icons search WORD...` | Find an emoji name for the config    |
+| `arrow icons name EMOJI...`  | Convert pasted emoji to config names |
 
 `--config` and `--icons` work with all of them.
 
-## Layout
+## Developing
+
+Run the tests with `uv run --extra test pytest`, or `pre-commit run
+--all-files` for the full lint, type, audit, and test suite.
 
 ```
 src/arrow/
@@ -111,14 +123,11 @@ scripts/
   build-and-install.sh  both in sequence
 ```
 
-Run the checks with `uv run --extra test pytest`, or `pre-commit run
---all-files` for the full lint, type, audit and test suite.
+## Build and deploy (the author's setup)
 
-## Build and deploy
-
-`scripts/upload.sh` refuses to run with uncommitted changes, builds a wheel and
-uploads it to a package registry. `scripts/install.sh` installs that wheel on
-the target and bounces a `supervisord` job named `arrow`.
+`scripts/upload.sh` refuses to run with uncommitted changes, builds a wheel,
+and uploads it to a package registry. `scripts/install.sh` installs that
+wheel on the target and bounces a `supervisord` job named `arrow`.
 `scripts/build-and-install.sh` runs both:
 
 ```sh
@@ -126,9 +135,9 @@ sh scripts/build-and-install.sh
 sh scripts/build-and-install.sh --no-restart
 ```
 
-Registry and host come from `scripts/deploy.env`; copy `deploy.env.example` and
-fill it in. The config and `icons.zip` are not in the wheel — put them on the
-host yourself and set `ARROW_CONFIG` in the service environment.
+Registry and host come from `scripts/deploy.env`; copy `deploy.env.example`
+and fill it in. The config and `icons.zip` are not in the wheel; put them
+on the host yourself and set `ARROW_CONFIG` in the service environment.
 
 ## License
 
