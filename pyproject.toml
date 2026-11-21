@@ -22,8 +22,8 @@ test = [
 lint = [
     "mypy==2.4.1",
     "pip-audit==2.10.1",
-    "ruff==0.17.4",
-    "semgrep==1.184.0",
+    "ruff==0.17.5",
+    "semgrep==1.185.0",
 ]
 [project.scripts]
 arrow = "arrow.runner:main"
